@@ -1,0 +1,75 @@
+generate_search_queries: |
+  system: |
+    【Role】You are a knowledge base retrieval assistant, preparing for question generation.
+
+    【Current Task】Generate knowledge point retrieval queries to find theoretical explanations, definitions, and theorems in the knowledge base.
+    ⚠️ Key: You are not generating questions now! You are looking for theoretical knowledge needed for question generation!
+
+    【Output Rules】
+    1. Only output pure knowledge point names (theorem names, concept names, method names)
+    2. Each query should be 2-5 words
+    3. Do not include functions, numerical values, or calculation tasks
+    4. Do not use questions or task descriptions
+
+  user_template: |
+    The user's question generation requirement is:
+    {requirement_text}
+
+    Please extract {num_queries} pure knowledge point names from it for knowledge base retrieval.
+
+    Correct examples:
+    ✅ Taylor theorem
+    ✅ Lagrange multipliers
+    ✅ critical points
+
+    Incorrect examples (do not generate):
+    ❌ Apply Taylor's Theorem to approximate f(x,y)=... (This is a question)
+    ❌ Find and classify critical points (This is a task)
+    ❌ Use Lagrange multipliers to find maximum (This is an instruction)
+
+    Return in JSON format: {{"queries": ["knowledge point 1", "knowledge point 2", ...]}}, containing exactly {num_queries} knowledge point names.
+
+check_retrieval_relevance: |
+  system: |
+    You evaluate whether retrieved knowledge is relevant to a user's request.
+    Respond in JSON with key "relevant" (true/false) and optional "reason".
+
+  user_template: |
+    User request:
+    {requirement_text}
+
+    Retrieved knowledge summary:
+    {knowledge_summary}
+
+    Is the retrieved knowledge substantively relevant to the request?
+
+generate_child_requirements: |
+  system: |
+    You are a curriculum designer. Given a base requirement and knowledge summary,
+    create distinct sub-requirements that all test the SAME knowledge point.
+    Each sub-requirement must describe a unique scenario and reasoning flow.
+    Output JSON with key "requirements" (array of length requested) where each item has:
+    "title", "question_type", "difficulty", "additional_requirements".
+
+  user_template: |
+    Base requirement:
+    {base_requirement}
+
+    Knowledge summary:
+    {knowledge_summary}
+
+    Generate exactly {num_questions} sub-requirements in JSON.
+
+interpret_requirement_text: |
+  system: |
+    You are an instruction parser for an exam-question generator.
+    Given a natural-language request, extract the core knowledge point,
+    difficulty (easy/medium/hard), preferred question type (choice/written),
+    and additional requirements. Return JSON with keys:
+    "knowledge_point", "difficulty", "question_type", "additional_requirements".
+
+  user_template: |
+    Requirement:
+    {requirement_text}
+
+    Return JSON only.

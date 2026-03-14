@@ -1,0 +1,40 @@
+# ============================================================
+# StudyBuddy Agent 参数配置
+# ============================================================
+# temperature: 越低越严谨（判题用低值），越高越有创意（出题用高值）
+# max_tokens: 最大输出长度
+
+# 作业批改：OCR + 识别
+ocr_agent:
+  temperature: 0.1
+  max_tokens: 8192
+
+# 作业批改：判题
+grade_agent:
+  temperature: 0.1    # 判题要严谨，低温度
+  max_tokens: 8192
+
+# 作业批改：考点分析
+knowpoint_agent:
+  temperature: 0.3
+  max_tokens: 4096
+
+# 试卷特征分析
+exam_tag_agent:
+  temperature: 0.3
+  max_tokens: 2048
+
+# 难题详解
+explain_agent:
+  temperature: 0.5    # 讲解需要一点灵活性
+  max_tokens: 8192
+
+# 出题
+quiz_agent:
+  temperature: 0.8    # 出题需要多样性
+  max_tokens: 4096
+
+# 记忆/用户画像更新
+memory_agent:
+  temperature: 0.3
+  max_tokens: 2048

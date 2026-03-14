@@ -1,0 +1,3270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <!-- ── PWA ── -->
+  <link rel="manifest" href="/ui/manifest.json">
+  <meta name="theme-color" content="#050b17">
+  <!-- iOS "Add to Home Screen" -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="StudyCore">
+  <link rel="apple-touch-icon" href="/ui/icon.svg">
+  <title>StudyCore · 学习中枢</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #050b17; color: #cbd5e1; }
+
+    /* ─── bg grid ─── */
+    .bg-grid {
+      background-image:
+        linear-gradient(rgba(34,211,238,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,211,238,.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* ─── scan line ─── */
+    @keyframes scan { 0%{top:-2px} 100%{top:100vh} }
+    .scan-line {
+      position: fixed; left:0; right:0; height:2px; z-index:999; pointer-events:none;
+      background: linear-gradient(90deg, transparent, rgba(34,211,238,.5), transparent);
+      animation: scan 14s linear infinite;
+    }
+
+    /* ─── sidebar nav ─── */
+    .nav-btn {
+      display:flex; align-items:center; gap:10px;
+      padding: 10px 16px; border-radius:8px; border-left:2px solid transparent;
+      font-size:.875rem; font-weight:500; cursor:pointer;
+      transition: all .18s;
+    }
+    .nav-btn.active { border-left-color:#22d3ee; background:rgba(34,211,238,.08); color:#22d3ee; }
+    .nav-btn:not(.active):hover { background:rgba(255,255,255,.04); border-left-color:rgba(34,211,238,.2); color:#94a3b8; }
+    .nav-btn:not(.active) { color:#475569; }
+
+    /* ─── card ─── */
+    .card {
+      background:#0c1828; border:1px solid #162035; border-radius:14px;
+      transition: border-color .2s, box-shadow .2s, transform .2s;
+    }
+    .card:hover {
+      border-color:rgba(34,211,238,.25);
+      box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 0 16px rgba(34,211,238,.06);
+      transform: translateY(-1px);
+    }
+
+    /* ─── gradient text ─── */
+    .grad { background:linear-gradient(130deg,#22d3ee,#a855f7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+    /* ─── neon button ─── */
+    .btn-neon {
+      background: linear-gradient(135deg,#22d3ee,#0ea5e9);
+      color:#030810; font-weight:700; border-radius:10px; padding:11px 24px;
+      font-size:.875rem; cursor:pointer;
+      box-shadow: 0 0 20px rgba(34,211,238,.25);
+      transition: opacity .15s, box-shadow .15s;
+    }
+    .btn-neon:hover { opacity:.9; box-shadow:0 0 30px rgba(34,211,238,.4); }
+    .btn-neon:disabled { background:#1e2d42; color:#334155; box-shadow:none; cursor:not-allowed; }
+
+    /* ─── subject badges ─── */
+    .b-math     {background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3);}
+    .b-physics  {background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.3);}
+    .b-chemistry{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.3);}
+    .b-english  {background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3);}
+    .b-biology  {background:rgba(236,72,153,.15);color:#f472b6;border:1px solid rgba(236,72,153,.3);}
+    .b-history  {background:rgba(249,115,22,.15);color:#fb923c;border:1px solid rgba(249,115,22,.3);}
+    .b-chinese  {background:rgba(239,68,68,.15); color:#f87171;border:1px solid rgba(239,68,68,.3);}
+    .badge { border-radius:6px; padding:2px 8px; font-size:.7rem; font-weight:600; display:inline-block; }
+
+    /* ─── drop zone ─── */
+    .drop-zone { border:2px dashed rgba(34,211,238,.2); border-radius:14px; transition:all .25s; cursor:pointer; }
+    .drop-zone.hovering { border-color:#22d3ee; background:rgba(34,211,238,.04); box-shadow:0 0 30px rgba(34,211,238,.1); }
+
+    /* ─── spin ─── */
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .spin { animation:spin .75s linear infinite; display:inline-block; }
+
+    /* ─── progress ─── */
+    @keyframes prog { from{width:3%} to{width:94%} }
+    .prog-bar { animation:prog 10s cubic-bezier(.4,0,.2,1) forwards; }
+
+    /* ─── fade in ─── */
+    @keyframes fadein { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .fadein { animation:fadein .28s ease; }
+
+    /* ─── scrollbar ─── */
+    ::-webkit-scrollbar { width:5px; }
+    ::-webkit-scrollbar-track { background:#060e1c; }
+    ::-webkit-scrollbar-thumb { background:#1a2d45; border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:#253d5c; }
+
+    /* ─── markdown ─── */
+    .md h1,.md h2,.md h3 { color:#22d3ee; font-weight:600; margin:.75rem 0 .35rem; }
+    .md h1{font-size:1.1rem} .md h2{font-size:1rem} .md h3{font-size:.9rem}
+    .md p { margin-bottom:.6rem; line-height:1.8; color:#94a3b8; }
+    .md ul,.md ol { margin-left:1.25rem; margin-bottom:.6rem; }
+    .md li { margin-bottom:.2rem; color:#94a3b8; }
+    .md code { background:rgba(34,211,238,.1); color:#22d3ee; padding:.1em .35em; border-radius:3px; font-family:'JetBrains Mono',monospace; font-size:.82em; }
+    .md pre { background:#040a14; border:1px solid #162035; border-radius:8px; padding:.75rem; overflow-x:auto; margin-bottom:.6rem; }
+    .md pre code { background:none; color:#e2e8f0; padding:0; }
+    .md strong { color:#f1f5f9; }
+    .md em { color:#a78bfa; }
+    .md blockquote { border-left:3px solid #22d3ee; padding-left:.75rem; color:#64748b; margin-bottom:.6rem; }
+    .md a { color:#22d3ee; text-decoration:underline; }
+
+    /* ─── stat ring ─── */
+    .ring-bg { stroke:#0c1828; }
+    .ring-fill { stroke:#22d3ee; stroke-linecap:round; transition:stroke-dashoffset 1.2s ease; }
+
+    /* ─── pill select ─── */
+    .pill {
+      padding:6px 14px; border-radius:20px; font-size:.8rem; font-weight:500; border:1px solid #1e3050;
+      background:#0c1828; color:#475569; cursor:pointer; transition:all .2s;
+    }
+    .pill.on { background:rgba(34,211,238,.12); border-color:rgba(34,211,238,.5); color:#22d3ee; }
+    .pill:not(.on):hover { border-color:#2a4060; color:#94a3b8; }
+
+    /* ─── ghost btn ─── */
+    .btn-ghost { padding:8px 16px; border-radius:8px; border:1px solid #162035; font-size:.8rem; color:#475569; cursor:pointer; transition:all .2s; }
+    .btn-ghost:hover { border-color:#334155; color:#94a3b8; }
+
+    /* ─── knowledge point chip (clickable) ─── */
+    .kp-chip {
+      background:rgba(34,211,238,.07); color:#22d3ee; border:1px solid rgba(34,211,238,.18);
+      border-radius:6px; padding:2px 8px; font-size:.7rem; font-weight:600;
+      display:inline-flex; align-items:center; gap:4px;
+      cursor:pointer; transition:all .18s; white-space:nowrap;
+    }
+    .kp-chip:hover { background:rgba(34,211,238,.18); border-color:rgba(34,211,238,.5); transform:translateY(-1px); box-shadow:0 2px 10px rgba(34,211,238,.15); }
+    .kp-chip.no-match { opacity:.35; cursor:default; }
+    .kp-chip.no-match:hover { background:rgba(34,211,238,.07); border-color:rgba(34,211,238,.18); transform:none; box-shadow:none; }
+
+    /* ─── review overlay ─── */
+    @keyframes flipIn { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+    .review-card { animation:flipIn .22s ease; }
+
+    /* ─── quick action card ─── */
+    .qa-card { border-radius:12px; padding:16px; cursor:pointer; transition:all .2s; border:1px solid; }
+    .qa-cyan  { background:rgba(34,211,238,.06); border-color:rgba(34,211,238,.2);  }
+    .qa-cyan:hover  { background:rgba(34,211,238,.12); box-shadow:0 0 20px rgba(34,211,238,.1); }
+    .qa-purple{ background:rgba(168,85,247,.06); border-color:rgba(168,85,247,.2);  }
+    .qa-purple:hover{ background:rgba(168,85,247,.12); box-shadow:0 0 20px rgba(168,85,247,.1); }
+    .qa-amber { background:rgba(245,158,11,.06); border-color:rgba(245,158,11,.2);  }
+    .qa-amber:hover { background:rgba(245,158,11,.12); box-shadow:0 0 20px rgba(245,158,11,.1); }
+
+    /* ─── dashboard: mastery bar ─── */
+    .mastery-bar { height:6px; border-radius:3px; background:#0a1525; overflow:hidden; }
+    .mastery-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,#22d3ee,#a855f7); transition:width 1.2s ease; }
+
+    /* ─── dashboard: subject level badges ─── */
+    .lvl-strong { background:rgba(16,185,129,.12); color:#10b981; border:1px solid rgba(16,185,129,.25); border-radius:5px; padding:1px 7px; font-size:.63rem; font-weight:700; white-space:nowrap; }
+    .lvl-ok     { background:rgba(245,158,11,.10); color:#f59e0b; border:1px solid rgba(245,158,11,.2);  border-radius:5px; padding:1px 7px; font-size:.63rem; font-weight:700; white-space:nowrap; }
+    .lvl-weak   { background:rgba(239,68,68,.10);  color:#ef4444; border:1px solid rgba(239,68,68,.2);   border-radius:5px; padding:1px 7px; font-size:.63rem; font-weight:700; white-space:nowrap; }
+
+    /* ─── dashboard: timeline ─── */
+    .tl-dot  { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:3px; }
+    .tl-line { width:1px; background:#162035; flex:1; min-height:10px; margin:2px auto; }
+
+    /* ─── dashboard: system guide flow cards ─── */
+    .flow-card { background:#040a14; border:1px solid #162035; border-radius:12px; padding:14px 16px; flex:1; min-width:0; }
+    .flow-arrow { color:#22d3ee; font-size:1.1rem; flex-shrink:0; align-self:center; opacity:.4; }
+
+    /* ─── session sidebar (inquire page) ─── */
+    .sess-sidebar {
+      width:220px; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden;
+      background:#040a14; border-right:1px solid #0d1e30;
+    }
+    @media (max-width:767px) {
+      .sess-sidebar {
+        position:fixed; top:0; left:0; bottom:0; z-index:50;
+        width:270px; transform:translateX(-100%); transition:transform .25s ease;
+        border-right:none; box-shadow:none;
+      }
+      .sess-sidebar.open { transform:translateX(0); box-shadow:4px 0 30px rgba(0,0,0,.7); }
+    }
+    .sess-item { padding:9px 12px; border-radius:8px; cursor:pointer; transition:background .15s; border-left:2px solid transparent; }
+    .sess-item:hover { background:rgba(34,211,238,.06); }
+    .sess-item.active { background:rgba(34,211,238,.10); border-left-color:#22d3ee; }
+    .hw-sidebar {
+      width:220px; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden;
+      background:#040a14; border-right:1px solid #0d1e30;
+    }
+    @media (max-width:767px) {
+      .hw-sidebar {
+        position:fixed; top:0; left:0; bottom:0; z-index:50;
+        width:270px; transform:translateX(-100%); transition:transform .25s ease;
+        border-right:none; box-shadow:none;
+      }
+      .hw-sidebar.open { transform:translateX(0); box-shadow:4px 0 30px rgba(0,0,0,.7); }
+    }
+    .hw-hist-item { padding:9px 12px; border-radius:8px; cursor:pointer; transition:background .15s; border-left:2px solid transparent; }
+    .hw-hist-item:hover { background:rgba(34,211,238,.06); }
+    .hw-hist-item.active { background:rgba(34,211,238,.10); border-left-color:#22d3ee; }
+
+    /* ─── bottom tab bar (mobile only) ─── */
+    .btab-bar {
+      position:fixed; bottom:0; left:0; right:0; z-index:50;
+      display:flex; align-items:stretch;
+      background:rgba(8,15,30,.97);
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+      border-top:1px solid #162035;
+      /* iOS home indicator safe area */
+      padding-bottom:env(safe-area-inset-bottom, 0px);
+    }
+    .btab-btn {
+      flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      padding:8px 2px 6px; gap:2px;
+      background:none; border:none; cursor:pointer;
+      color:#475569; transition:color .18s; position:relative; min-width:0;
+    }
+    .btab-btn.on { color:#22d3ee; }
+    .btab-btn .ti { font-size:1.25rem; line-height:1.1; }
+    .btab-btn .tl { font-size:.55rem; font-weight:600; letter-spacing:.02em; white-space:nowrap; }
+    .btab-btn .tb { font-size:.55rem; line-height:1.3; min-width:1rem; text-align:center;
+      position:absolute; top:5px; right:calc(50% - 18px);
+      background:rgba(34,211,238,.18); color:#22d3ee;
+      border:1px solid rgba(34,211,238,.35); border-radius:6px; padding:0 3px; }
+    .btab-btn .tline {
+      position:absolute; top:0; left:50%; transform:translateX(-50%);
+      width:28px; height:2.5px; border-radius:0 0 3px 3px;
+      background:#22d3ee; box-shadow:0 0 10px rgba(34,211,238,.7);
+    }
+
+    /* ─── mobile layout tweaks ─── */
+    /* scrollable page areas get bottom padding to clear the tab bar */
+    .mob-scroll { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)) !important; }
+
+    /* ensure iOS smooth momentum scroll */
+    .overflow-y-auto { -webkit-overflow-scrolling: touch; }
+
+    /* top iOS status bar safe area for header */
+    @supports(padding-top: env(safe-area-inset-top)) {
+      header { padding-top: max(env(safe-area-inset-top, 0px), 1rem); }
+    }
+  </style>
+</head>
+
+<body class="bg-grid" x-data="app()" x-init="init()">
+  <div class="scan-line"></div>
+
+  <div class="flex h-screen w-screen">
+
+    <!-- ═══════════════════════════════════════════════════════
+         SIDEBAR
+    ════════════════════════════════════════════════════════════ -->
+    <aside class="w-56 flex-shrink-0 bg-[#080f1e] border-r border-[#162035] flex-col hidden md:flex">
+
+      <!-- logo -->
+      <div class="px-5 py-5 border-b border-[#162035]">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.3)">
+            <span style="font-size:1rem">⚡</span>
+          </div>
+          <div>
+            <div class="font-bold text-sm grad">StudyCore</div>
+            <div class="text-xs text-slate-600 font-mono">学习中枢 v1.0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- nav -->
+      <nav class="flex-1 p-3 space-y-0.5">
+        <template x-for="item in navItems" :key="item.id">
+          <button @click="goTo(item.id)" :class="['nav-btn w-full', page===item.id?'active':'']">
+            <span x-text="item.icon" style="font-size:1.05rem;width:20px;text-align:center;flex-shrink:0"></span>
+            <span x-text="item.label" class="flex-1 text-left"></span>
+            <span x-show="item.badge>0" x-text="item.badge"
+              class="text-xs px-1.5 py-0.5 rounded-full font-mono"
+              style="background:rgba(34,211,238,.15);color:#22d3ee;border:1px solid rgba(34,211,238,.3)"></span>
+          </button>
+        </template>
+      </nav>
+
+      <!-- bottom status -->
+      <div class="p-4 border-t border-[#162035] space-y-2">
+        <div class="text-xs text-slate-600 uppercase tracking-widest mb-2 font-mono">系统状态</div>
+        <div class="flex justify-between text-xs">
+          <span class="text-slate-500">API</span>
+          <span class="flex items-center gap-1" style="color:#10b981">
+            <span class="w-1.5 h-1.5 rounded-full inline-block" style="background:#10b981;box-shadow:0 0 5px #10b981"></span>在线
+          </span>
+        </div>
+        <div class="flex justify-between text-xs">
+          <span class="text-slate-500">错题</span>
+          <span class="font-mono" style="color:#22d3ee" x-text="(wbStats?.total ?? 0) + ' 题'"></span>
+        </div>
+        <div class="flex justify-between text-xs">
+          <span class="text-slate-500">掌握率</span>
+          <span class="font-mono" style="color:#10b981"
+            x-text="wbStats?.total>0 ? Math.round(wbStats.mastered/wbStats.total*100)+'%' : '--'"></span>
+        </div>
+        <!-- api url -->
+        <input x-model="apiBase"
+          class="w-full mt-2 text-xs px-2 py-1.5 rounded-lg font-mono"
+          style="background:#040a14;border:1px solid #162035;color:#475569;outline:none"
+          placeholder="http://localhost:8001"
+          @focus="$el.style.borderColor='rgba(34,211,238,.4)'"
+          @blur="$el.style.borderColor='#162035'">
+      </div>
+    </aside>
+
+    <!-- ═══════════════════════════════════════════════════════
+         MAIN
+    ════════════════════════════════════════════════════════════ -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+
+      <!-- header -->
+      <header class="flex-shrink-0 px-4 md:px-8 py-3 md:py-4 border-b border-[#162035]" style="background:rgba(8,15,30,.9);backdrop-filter:blur(8px)">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-base font-bold text-white" x-text="navItems.find(n=>n.id===page)?.label||'主控台'"></h1>
+            <p class="text-xs text-slate-500 mt-0.5" x-text="navItems.find(n=>n.id===page)?.desc||''"></p>
+          </div>
+          <div class="text-xs text-slate-600 font-mono"
+            x-text="new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'short',day:'numeric',weekday:'short'})"></div>
+        </div>
+      </header>
+
+      <!-- page content -->
+      <div class="flex-1" id="main-scroll"
+        :class="['inquire','history','homework'].includes(page) ? 'overflow-hidden flex flex-col' : 'overflow-y-auto p-4 md:p-8 mob-scroll'"
+        style="min-height:0">
+
+        <!-- ════════ DASHBOARD ════════ -->
+        <div x-show="page==='dashboard'" class="fadein space-y-5">
+
+          <!-- ── Block 1: Identity Anchor ────────────────────────────── -->
+          <div class="card p-5" style="border-left:3px solid #22d3ee">
+            <div class="flex flex-col md:flex-row gap-5">
+
+              <!-- Left: identity info -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xl font-bold text-white"
+                    x-text="prof.pref.nickname ? '你好，' + prof.pref.nickname + ' 👋' : '你好，同学 👋'"></span>
+                  <button class="text-xs text-slate-600 hover:text-cyan-400 transition-colors ml-1"
+                    @click="goTo('profile')" title="编辑档案">✏️</button>
+                </div>
+                <!-- tags row -->
+                <div class="flex flex-wrap items-center gap-2 mb-3">
+                  <span x-show="prof.pref.grade"
+                    class="text-xs px-2 py-0.5 rounded-full font-medium"
+                    style="background:rgba(34,211,238,.1);color:#22d3ee;border:1px solid rgba(34,211,238,.2)"
+                    x-text="prof.pref.grade"></span>
+                  <span x-show="prof.pref.gender==='male'" class="text-xs px-2 py-0.5 rounded-full"
+                    style="background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.2)">男生</span>
+                  <span x-show="prof.pref.gender==='female'" class="text-xs px-2 py-0.5 rounded-full"
+                    style="background:rgba(236,72,153,.1);color:#f472b6;border:1px solid rgba(236,72,153,.2)">女生</span>
+                  <span x-show="prof.pref.mbti"
+                    class="text-xs px-2 py-0.5 rounded-full font-mono font-bold"
+                    style="background:rgba(129,140,248,.1);color:#818cf8;border:1px solid rgba(129,140,248,.2)"
+                    x-text="prof.pref.mbti"></span>
+                  <span x-show="!prof.pref.grade && !prof.pref.mbti && !prof.loading"
+                    class="text-xs text-slate-600 cursor-pointer hover:text-cyan-400 transition-colors"
+                    @click="goTo('profile')">点击完善个人档案 →</span>
+                </div>
+                <!-- AI greeting / assessment -->
+                <div x-show="prof.greeting"
+                  class="text-sm text-slate-400 leading-relaxed border-l-2 border-cyan-900 pl-3"
+                  x-text="prof.greeting"></div>
+                <div x-show="!prof.greeting && !prof.loading"
+                  class="text-sm text-slate-600">欢迎回来，今天也加油！</div>
+              </div>
+
+              <!-- Right: streak + mastery -->
+              <div class="flex md:flex-col items-center md:items-end justify-between md:justify-start gap-4 flex-shrink-0">
+                <!-- streak -->
+                <div class="text-center md:text-right">
+                  <div class="flex items-center gap-2 justify-center md:justify-end">
+                    <span class="text-3xl font-bold font-mono grad"
+                      x-text="(prof.streak?.current_streak??0)+'天'"></span>
+                    <span class="text-2xl">🔥</span>
+                  </div>
+                  <div class="text-xs text-slate-500 mt-0.5">连续打卡</div>
+                  <div class="text-xs text-slate-600">
+                    历史最长 <span class="font-mono" style="color:#22d3ee"
+                      x-text="prof.streak?.longest_streak??0"></span> 天 ·
+                    累计 <span class="font-mono" x-text="prof.streak?.total_study_days??0"></span> 天
+                  </div>
+                </div>
+                <!-- mastery progress -->
+                <div x-show="wbStats?.total > 0" class="w-40">
+                  <div class="flex justify-between text-xs mb-1.5">
+                    <span class="text-slate-500">错题掌握率</span>
+                    <span class="font-mono font-semibold" style="color:#10b981"
+                      x-text="overallMasteryPct + '%'"></span>
+                  </div>
+                  <div class="mastery-bar">
+                    <div class="mastery-fill" :style="'width:'+(overallMasteryPct||0)+'%'"></div>
+                  </div>
+                  <div class="text-xs text-slate-600 mt-1 text-right">
+                    <span x-text="wbStats.mastered"></span>/<span x-text="wbStats.total"></span> 题已掌握
+                  </div>
+                </div>
+                <div x-show="!wbStats?.total && !prof.loading"
+                  class="text-xs text-slate-600 text-center md:text-right leading-relaxed">
+                  还没有错题记录<br>上传作业后自动积累
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Block 2: Learning Snapshot ──────────────────────────── -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+            <!-- Subject strength (2/3) -->
+            <div class="md:col-span-2 card p-5">
+              <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <span style="color:#22d3ee">📊</span> 科目正确率分析
+              </h3>
+              <!-- has performance data -->
+              <div x-show="subjectStrengthBars.length > 0" class="space-y-3">
+                <template x-for="s in subjectStrengthBars" :key="s.s">
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs text-slate-500 w-10 text-right flex-shrink-0" x-text="s.label"></span>
+                    <div class="flex-1 rounded-full h-2 overflow-hidden" style="background:#0a1525">
+                      <div class="h-full rounded-full transition-all duration-700"
+                        :style="'width:'+s.pct+'%;background:'+s.color"></div>
+                    </div>
+                    <span class="text-xs font-mono w-9 text-right flex-shrink-0"
+                      :style="'color:'+s.color" x-text="s.pct+'%'"></span>
+                    <span :class="s.level==='strong'?'lvl-strong':s.level==='weak'?'lvl-weak':'lvl-ok'"
+                      x-text="s.level==='strong'?'优秀':s.level==='weak'?'偏弱':'良好'"></span>
+                  </div>
+                </template>
+              </div>
+              <!-- fallback: wrong book distribution -->
+              <div x-show="subjectStrengthBars.length === 0 && (wbStats?.total ?? 0) > 0" class="space-y-3">
+                <div class="text-xs text-slate-600 mb-3">（暂无正确率数据，显示错题分布）</div>
+                <template x-for="s in subjectBars.filter(x=>x.count>0)" :key="s.name">
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs text-slate-500 w-10 text-right flex-shrink-0" x-text="s.label"></span>
+                    <div class="flex-1 rounded-full h-2 overflow-hidden" style="background:#0a1525">
+                      <div class="h-full rounded-full transition-all duration-700"
+                        :style="'width:'+s.pct+'%;background:'+s.color"></div>
+                    </div>
+                    <span class="text-xs font-mono text-slate-500 w-6 text-right" x-text="s.count"></span>
+                  </div>
+                </template>
+              </div>
+              <!-- empty -->
+              <div x-show="subjectStrengthBars.length === 0 && !wbStats?.total" class="py-6 text-center text-slate-600">
+                <div class="text-3xl mb-2">📊</div>
+                <div class="text-xs">完成几次作业批改后，这里将展示你各科的正确率趋势</div>
+              </div>
+              <!-- exam anxiety warning -->
+              <div x-show="prof.summary?.exam_anxiety_flag"
+                class="mt-4 rounded-xl px-4 py-3 flex items-start gap-3"
+                style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2)">
+                <span style="color:#f87171;flex-shrink:0;margin-top:1px">⚠️</span>
+                <div>
+                  <div class="text-xs font-semibold" style="color:#f87171">检测到考试焦虑倾向</div>
+                  <div class="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                    近期考试正确率比平时作业低 15% 以上，建议模拟考场环境练习，增强临场信心。
+                    <span class="text-cyan-500 cursor-pointer ml-1" @click="goTo('profile')">查看趋势 →</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Top weak points (1/3) -->
+            <div class="card p-5">
+              <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <span style="color:#f59e0b">🎯</span> 最需攻克的知识点
+              </h3>
+              <div x-show="topWeakPoints.length > 0" class="space-y-3">
+                <template x-for="(item, i) in topWeakPoints" :key="item.subj+item.pt">
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs font-mono text-slate-600 mt-0.5 flex-shrink-0"
+                      x-text="(i+1)+'.'"></span>
+                    <div class="flex-1 min-w-0">
+                      <div class="text-xs text-slate-300 leading-snug" x-text="item.pt"></div>
+                      <span class="badge mt-1 inline-block" :class="'b-'+item.subj"
+                        x-text="item.label"></span>
+                    </div>
+                  </div>
+                </template>
+              </div>
+              <div x-show="topWeakPoints.length === 0" class="py-6 text-center text-slate-600">
+                <div class="text-3xl mb-2">🎯</div>
+                <div class="text-xs leading-relaxed">批改作业后，系统会自动归纳你的薄弱知识点</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Block 3: Timeline + Recommendations ─────────────────── -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+            <!-- Recent learning timeline -->
+            <div class="card p-5">
+              <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <span style="color:#a855f7">📈</span> 近期学习记录
+              </h3>
+              <div x-show="(prof.records||[]).length > 0">
+                <template x-for="(r, i) in (prof.records||[]).slice(0,5)" :key="r.record_id">
+                  <div class="flex items-start gap-3">
+                    <div class="flex flex-col items-center">
+                      <div class="tl-dot" :style="'background:'+SUBJ_COLORS[r.subject]"></div>
+                      <div class="tl-line" x-show="i < Math.min((prof.records||[]).length,5)-1"></div>
+                    </div>
+                    <div class="flex-1 min-w-0 pb-3">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-semibold text-white"
+                          x-text="SUBJ_LABEL[r.subject]||r.subject"></span>
+                        <span class="text-xs px-1.5 py-0.5 rounded"
+                          :style="r.record_type==='exam'?'background:rgba(168,85,247,.1);color:#c084fc':'background:rgba(34,211,238,.07);color:#22d3ee'"
+                          x-text="r.record_type==='exam'?'考试':'作业'"></span>
+                        <span x-show="r.exam_name" class="text-xs text-slate-500 truncate"
+                          x-text="r.exam_name"></span>
+                        <span class="text-sm font-bold font-mono ml-auto flex-shrink-0"
+                          :style="r.accuracy_rate>=0.8?'color:#10b981':r.accuracy_rate>=0.6?'color:#f59e0b':'color:#ef4444'"
+                          x-text="Math.round(r.accuracy_rate*100)+'%'"></span>
+                      </div>
+                      <div class="text-xs text-slate-600 mt-0.5"
+                        x-text="r.recorded_at?.slice(0,10)"></div>
+                    </div>
+                  </div>
+                </template>
+                <button class="text-xs text-slate-500 hover:text-cyan-400 transition-colors mt-1"
+                  @click="goTo('history')">查看全部记录 →</button>
+              </div>
+              <div x-show="(prof.records||[]).length === 0 && !prof.loading"
+                class="py-8 text-center text-slate-600">
+                <div class="text-3xl mb-2">📝</div>
+                <div class="text-xs mb-4 leading-relaxed">还没有学习记录<br>上传第一次作业，开始你的学习之旅</div>
+                <button class="btn-neon text-xs py-2 px-5" @click="goTo('homework')">上传作业</button>
+              </div>
+            </div>
+
+            <!-- Actionable recommendations -->
+            <div class="card p-5">
+              <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <span style="color:#22d3ee">⚡</span> 今日行动建议
+              </h3>
+              <div class="space-y-2 mb-4">
+                <template x-for="rec in dashRecommendations" :key="rec.text">
+                  <div class="rounded-xl p-3 cursor-pointer transition-all"
+                    :style="'background:'+rec.bg+';border:1px solid '+rec.border"
+                    @click="goTo(rec.target)"
+                    @mouseover="$el.style.background=rec.hover"
+                    @mouseout="$el.style.background=rec.bg">
+                    <div class="flex items-start gap-2">
+                      <span x-text="rec.icon" class="flex-shrink-0 mt-0.5"></span>
+                      <div class="flex-1 min-w-0">
+                        <div class="text-xs text-slate-300 leading-snug" x-text="rec.text"></div>
+                        <div class="text-xs font-semibold mt-1.5"
+                          :style="'color:'+rec.color" x-text="rec.action + ' →'"></div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+              <!-- fixed quick actions -->
+              <div class="grid grid-cols-3 gap-2">
+                <div class="qa-card qa-cyan py-3 text-center" @click="goTo('homework')">
+                  <div class="text-base mb-1">📸</div>
+                  <div class="text-xs font-semibold" style="color:#22d3ee">批改</div>
+                </div>
+                <div class="qa-card qa-purple py-3 text-center" @click="goTo('wrongbook')">
+                  <div class="text-base mb-1">📓</div>
+                  <div class="text-xs font-semibold" style="color:#a855f7">错题本</div>
+                </div>
+                <div class="qa-card qa-amber py-3 text-center" @click="goTo('inquire')">
+                  <div class="text-base mb-1">🔍</div>
+                  <div class="text-xs font-semibold" style="color:#f59e0b">询问</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Block 4: System Guide (README) ──────────────────────── -->
+          <div class="card p-6">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-5 flex items-center gap-2">
+              <span style="color:#a855f7">🗺️</span> 这套系统是如何为你工作的
+            </h3>
+            <!-- main flow: 3 modules in a row -->
+            <div class="flex flex-col md:flex-row items-stretch gap-2 mb-3">
+              <div class="flow-card cursor-pointer" @click="goTo('homework')"
+                onmouseover="this.style.borderColor='rgba(34,211,238,.35)'"
+                onmouseout="this.style.borderColor='#162035'">
+                <div class="text-xl mb-2">📸</div>
+                <div class="text-sm font-semibold text-white mb-1.5">作业批改</div>
+                <div class="text-xs text-slate-500 leading-relaxed">
+                  拍照上传作业 → AI 自动识别题目 → 逐题评分判断 → 错题 + 薄弱知识点自动记录到记忆系统
+                </div>
+              </div>
+              <div class="flow-arrow hidden md:flex">→</div>
+              <div class="flow-card cursor-pointer" @click="goTo('wrongbook')"
+                onmouseover="this.style.borderColor='rgba(168,85,247,.35)'"
+                onmouseout="this.style.borderColor='#162035'">
+                <div class="text-xl mb-2">📓</div>
+                <div class="text-sm font-semibold text-white mb-1.5">错题本</div>
+                <div class="text-xs text-slate-500 leading-relaxed">
+                  自动归集所有错题 → 按科目、知识点筛选 → AI 点击即解析 → 标记已掌握，追踪进度
+                </div>
+              </div>
+              <div class="flow-arrow hidden md:flex">→</div>
+              <div class="flow-card cursor-pointer" @click="goTo('inquire')"
+                onmouseover="this.style.borderColor='rgba(245,158,11,.35)'"
+                onmouseout="this.style.borderColor='#162035'">
+                <div class="text-xl mb-2">🔍</div>
+                <div class="text-sm font-semibold text-white mb-1.5">题目询问</div>
+                <div class="text-xs text-slate-500 leading-relaxed">
+                  任意题目文字/图片描述 → 多轮对话深度追问 → 知识库内容自动引用 → 历史记忆加持解析
+                </div>
+              </div>
+            </div>
+            <!-- secondary row: 3 supporting modules -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div class="flow-card flex items-start gap-3 cursor-pointer" @click="goTo('kb')"
+                onmouseover="this.style.borderColor='rgba(16,185,129,.3)'"
+                onmouseout="this.style.borderColor='#162035'">
+                <span class="text-xl flex-shrink-0">📚</span>
+                <div>
+                  <div class="text-xs font-semibold text-white mb-0.5">知识库</div>
+                  <div class="text-xs text-slate-500 leading-relaxed">上传教材/笔记 → 向量化存储 → 询问时自动引用相关内容</div>
+                </div>
+              </div>
+              <div class="flow-card flex items-start gap-3 cursor-pointer" @click="goTo('history')"
+                onmouseover="this.style.borderColor='rgba(34,211,238,.2)'"
+                onmouseout="this.style.borderColor='#162035'">
+                <span class="text-xl flex-shrink-0">📋</span>
+                <div>
+                  <div class="text-xs font-semibold text-white mb-0.5">历史记录</div>
+                  <div class="text-xs text-slate-500 leading-relaxed">所有批改记录和答疑会话完整存档，随时回顾</div>
+                </div>
+              </div>
+              <div class="flow-card flex items-start gap-3 cursor-pointer" @click="goTo('profile')"
+                onmouseover="this.style.borderColor='rgba(168,85,247,.3)'"
+                onmouseout="this.style.borderColor='#162035'">
+                <span class="text-xl flex-shrink-0">🧠</span>
+                <div>
+                  <div class="text-xs font-semibold text-white mb-0.5">长期记忆</div>
+                  <div class="text-xs text-slate-500 leading-relaxed">AI 记住你的薄弱点和偏好，每次解析自动个性化调整</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ════════ HOMEWORK ════════ -->
+        <div x-show="page==='homework'" class="fadein flex flex-1" style="min-height:0">
+
+          <!-- ── history sidebar ── -->
+          <div class="hw-sidebar" :class="hw.showSidebar ? 'open' : ''">
+            <div class="flex-shrink-0 p-3" style="border-bottom:1px solid #0d1e30">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs text-slate-500 uppercase tracking-widest">批改历史</span>
+                <span x-show="hw.histList.length>0" class="text-xs px-1.5 py-0.5 rounded-full font-mono"
+                  style="background:rgba(34,211,238,.1);color:#22d3ee;border:1px solid rgba(34,211,238,.2)"
+                  x-text="hw.histList.length"></span>
+              </div>
+              <button @click="hw.state='upload'; hw.step='subject'; hw.files=[]; hw.previews=[]; hw.result=null; hw.showSidebar=false; try{localStorage.removeItem('hw_last_result')}catch(_){}"
+                class="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all"
+                style="background:rgba(34,211,238,.07);border:1px dashed rgba(34,211,238,.3);color:#22d3ee"
+                onmouseover="this.style.background='rgba(34,211,238,.14)'"
+                onmouseout="this.style.background='rgba(34,211,238,.07)'">
+                ➕ 新批改
+              </button>
+            </div>
+            <div class="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
+              <div x-show="hw.histLoading" class="py-6 text-center text-xs text-slate-600">加载中...</div>
+              <div x-show="!hw.histLoading && hw.histList.length===0"
+                class="py-8 text-center text-xs text-slate-700 leading-relaxed px-3">
+                还没有批改记录<br>上传图片开始第一次批改
+              </div>
+              <template x-for="rec in hw.histList" :key="rec.id">
+                <div class="hw-hist-item" :class="hw.activeHistId===rec.id?'active':''"
+                  @click="hwResumeHist(rec); hw.showSidebar=false">
+                  <div class="text-xs font-medium leading-snug truncate"
+                    :style="hw.activeHistId===rec.id?'color:#e2e8f0':'color:#94a3b8'">
+                    <span x-text="rec.subject_cn"></span>
+                    <span class="ml-1 font-mono"
+                      :style="rec.accuracy_rate>=0.8?'color:#10b981':rec.accuracy_rate>=0.6?'color:#f59e0b':'color:#ef4444'"
+                      x-text="Math.round(rec.accuracy_rate*100)+'%'"></span>
+                  </div>
+                  <div class="text-xs text-slate-600 mt-0.5 flex items-center gap-1">
+                    <span x-text="(rec.graded_at||'').slice(0,10)"></span>
+                    <span>·</span>
+                    <span x-text="rec.total_questions+'题'"></span>
+                  </div>
+                  <div x-show="rec.weak_knowledge_points?.length" class="flex flex-wrap gap-1 mt-1">
+                    <template x-for="kp in (rec.weak_knowledge_points||[]).slice(0,2)" :key="kp">
+                      <span class="text-xs px-1 py-0.5 rounded" style="background:rgba(239,68,68,.08);color:#f87171;font-size:10px" x-text="kp"></span>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- mobile backdrop -->
+          <div x-show="hw.showSidebar" class="md:hidden fixed inset-0 z-40"
+            style="background:rgba(0,0,0,.55)" @click="hw.showSidebar=false"></div>
+
+          <!-- ── main area ── -->
+          <div class="flex-1 flex flex-col min-w-0 overflow-y-auto" style="min-height:0">
+          <div class="max-w-3xl mx-auto w-full px-4 py-4">
+
+          <!-- mobile top bar (upload state) -->
+          <div x-show="hw.state==='upload'" class="md:hidden flex-shrink-0 flex items-center gap-2 px-4 py-2" style="border-bottom:1px solid #0d1e30">
+            <button class="w-7 h-7 flex items-center justify-center rounded-lg text-sm flex-shrink-0"
+              style="background:#040a14;border:1px solid #162035;color:#475569"
+              @click="hw.showSidebar=true" title="历史记录">☰</button>
+            <span class="text-xs text-slate-500">批改历史</span>
+          </div>
+
+          <!-- upload state -->
+          <div x-show="hw.state==='upload'">
+
+            <!-- ── STEP 1: 选科目 ── -->
+            <div x-show="hw.step==='subject'" class="fadein">
+              <div class="card p-8">
+                <h2 class="text-base font-bold text-white mb-1">📸 作业批改</h2>
+                <p class="text-xs text-slate-500 mb-6">请先选择科目，再上传作业图片</p>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <template x-for="s in subjects" :key="s.v">
+                    <button
+                      class="rounded-xl p-5 text-left transition-all"
+                      style="background:#040a14;border:1px solid #162035;color:#cbd5e1"
+                      @mouseover="$el.style.borderColor='rgba(34,211,238,.4)';$el.style.background='rgba(34,211,238,.04)'"
+                      @mouseout="$el.style.borderColor='#162035';$el.style.background='#040a14'"
+                      @click="hw.subject=s.v; hw.step='upload'">
+                      <div class="text-3xl mb-3" x-text="s.label.split(' ')[1]"></div>
+                      <div class="text-sm font-semibold text-white" x-text="s.short"></div>
+                    </button>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── STEP 2: 上传图片 ── -->
+            <div x-show="hw.step==='upload'" class="fadein">
+              <div class="card p-8 mb-5">
+
+                <!-- 已选科目 + 更换按钮 -->
+                <div class="flex items-center gap-3 mb-5 pb-4" style="border-bottom:1px solid #0d1e30">
+                  <button
+                    class="text-xs px-3 py-1.5 rounded-lg"
+                    style="background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.2);color:#22d3ee"
+                    @click="hw.step='subject'; hw.files=[]; hw.previews=[]">
+                    ← 更换科目
+                  </button>
+                  <span class="text-sm font-semibold text-white" x-text="subjects.find(s=>s.v===hw.subject)?.label"></span>
+                </div>
+
+                <h2 class="text-base font-bold text-white mb-1">📸 上传作业图片</h2>
+                <p class="text-xs text-slate-500 mb-6">支持拍照上传，AI 自动识别并批改，错题实时存入错题本</p>
+
+                <!-- record type toggle -->
+                <div class="mb-5">
+                  <div class="text-xs text-slate-600 uppercase tracking-widest mb-2">上传类型</div>
+                  <div class="flex gap-2">
+                    <button class="pill" :class="hw.recordType==='homework'?'on':''" @click="hw.recordType='homework'">📝 作业</button>
+                    <button class="pill" :class="hw.recordType==='exam'?'on':''" @click="hw.recordType='exam'">📋 考试</button>
+                  </div>
+                  <!-- exam name input -->
+                  <div x-show="hw.recordType==='exam'" class="mt-3">
+                    <input x-model="hw.examName"
+                      class="w-full px-3 py-2 text-sm rounded-lg outline-none"
+                      style="background:#040a14;border:1px solid #162035;color:#cbd5e1"
+                      placeholder="考试名称（如：期中考试、月考）"
+                      @focus="$el.style.borderColor='rgba(34,211,238,.4)'"
+                      @blur="$el.style.borderColor='#162035'">
+                  </div>
+                </div>
+
+                <!-- model picker -->
+                <div class="mb-6">
+                  <div class="text-xs text-slate-600 uppercase tracking-widest mb-2">AI 模型</div>
+                  <div class="flex gap-2">
+                    <button class="pill" :class="hwModel===''?'on':''" @click="hwModel=''">⚙️ 系统默认</button>
+                    <template x-for="m in models" :key="m.key">
+                      <button class="pill" :class="hwModel===m.key?'on':''" @click="hwModel=m.key" x-text="m.label"></button>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- drop zone -->
+                <div class="drop-zone p-10 text-center"
+                  :class="hw.dragging?'hovering':''"
+                  @dragover.prevent="hw.dragging=true"
+                  @dragleave="hw.dragging=false"
+                  @drop.prevent="hwDrop($event)"
+                  @click="$refs.fileInput.click()">
+                  <input type="file" x-ref="fileInput" accept="image/*" multiple class="hidden" @change="hwSelect($event)">
+                  <div x-show="hw.files.length===0" class="fadein">
+                    <div style="font-size:3rem;margin-bottom:12px">📷</div>
+                    <div class="text-sm font-semibold text-white mb-1">拖拽图片到这里，或点击上传</div>
+                    <div class="text-xs text-slate-500">支持 JPG、PNG、HEIC 等 · 可多张（正反面）</div>
+                  </div>
+                  <div x-show="hw.files.length>0" class="fadein">
+                    <div class="flex flex-wrap gap-3 justify-center">
+                      <template x-for="(p,i) in hw.previews" :key="i">
+                        <div class="relative">
+                          <img :src="p" class="h-40 rounded-lg object-contain" style="border:1px solid #22d3ee55">
+                          <button @click.stop="hwRemoveFile(i)"
+                            class="absolute -top-2 -right-2 w-5 h-5 rounded-full text-xs flex items-center justify-center"
+                            style="background:#ef4444;color:#fff">✕</button>
+                        </div>
+                      </template>
+                      <div class="h-40 w-28 rounded-lg border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-600 text-xs gap-1 cursor-pointer hover:border-slate-500">
+                        <span style="font-size:1.5rem">+</span>
+                        <span>继续添加</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button class="btn-neon w-full mt-5" :disabled="hw.files.length===0" @click="hwGrade()">
+                  🚀 开始批改
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- loading state -->
+          <div x-show="hw.state==='loading'" class="text-center py-24 fadein">
+            <div class="relative w-20 h-20 mx-auto mb-6">
+              <div class="absolute inset-0 rounded-full" style="border:2px solid rgba(34,211,238,.15)"></div>
+              <div class="absolute inset-0 rounded-full spin" style="border:2px solid transparent;border-top-color:#22d3ee"></div>
+              <div class="absolute inset-0 flex items-center justify-center text-3xl">🧠</div>
+            </div>
+            <div class="text-white font-semibold text-lg mb-2">AI 批改中...</div>
+            <div class="text-slate-500 text-sm mb-5" x-text="hw.msg"></div>
+            <div class="max-w-xs mx-auto rounded-full h-1.5 overflow-hidden" style="background:#0a1525">
+              <div class="h-full rounded-full prog-bar" style="background:linear-gradient(90deg,#22d3ee,#a855f7)"></div>
+            </div>
+          </div>
+
+          <!-- result state -->
+          <div x-show="hw.state==='done'" class="fadein">
+            <!-- score banner -->
+            <div class="card p-6 mb-5">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="text-xs text-slate-500 mb-1">批改完成</div>
+                  <div class="text-4xl font-bold font-mono grad" x-text="hwScoreLabel()"></div>
+                  <div class="text-xs text-slate-500 mt-1" x-text="hw.result?.subject ? SUBJ_LABEL[hw.result.subject]||hw.result.subject : ''"></div>
+                </div>
+                <div class="text-right">
+                  <div class="flex gap-4 text-center">
+                    <div>
+                      <div class="text-xl font-bold font-mono text-green-400" x-text="hw.result?.correct_count??0"></div>
+                      <div class="text-xs text-slate-500">正确</div>
+                    </div>
+                    <div>
+                      <div class="text-xl font-bold font-mono text-red-400" x-text="(hw.result?.wrong_count??0)+(hw.result?.partial_count??0)"></div>
+                      <div class="text-xs text-slate-500">错误</div>
+                    </div>
+                    <div>
+                      <div class="text-xl font-bold font-mono text-slate-400" x-text="hw.result?.total_questions??0"></div>
+                      <div class="text-xs text-slate-500">合计</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- wrong saved notice -->
+              <div x-show="(hw.result?.wrong_count??0)+(hw.result?.partial_count??0)>0"
+                class="mt-4 flex items-center gap-2 text-sm px-4 py-2 rounded-lg"
+                style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#fbbf24">
+                ⚠️ <span x-text="((hw.result?.wrong_count??0)+(hw.result?.partial_count??0))+' 道错题已自动存入错题本'"></span>
+              </div>
+
+              <!-- exam tags -->
+              <div x-show="hw.result?.exam_tags?.length" class="mt-3 flex flex-wrap gap-2">
+                <template x-for="tag in (hw.result?.exam_tags||[])" :key="tag">
+                  <span class="badge text-xs px-2 py-0.5 rounded" style="background:rgba(168,85,247,.12);color:#c084fc;border:1px solid rgba(168,85,247,.25)" x-text="tag"></span>
+                </template>
+              </div>
+
+              <!-- weak points -->
+              <div x-show="hw.result?.weak_knowledge_points?.length" class="mt-3">
+                <span class="text-xs text-slate-500">薄弱知识点：</span>
+                <template x-for="kp in (hw.result?.weak_knowledge_points||[])" :key="kp">
+                  <span class="badge ml-1" style="background:rgba(34,211,238,.1);color:#22d3ee;border:1px solid rgba(34,211,238,.25)" x-text="kp"></span>
+                </template>
+              </div>
+            </div>
+
+            <!-- questions list -->
+            <div class="space-y-3 mb-5">
+              <div class="text-xs text-slate-600 uppercase tracking-widest">题目详情</div>
+              <template x-for="(q,i) in (hw.result?.questions||[])" :key="i">
+                <div class="card p-5" :class="q.grade==='correct'?'':''" :style="q.grade==='correct'?'border-color:rgba(16,185,129,.15)':q.grade==='wrong'||q.grade==='partial'?'border-color:rgba(239,68,68,.2)':''">
+                  <div class="flex items-start gap-3">
+                    <!-- grade icon -->
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-sm"
+                      :style="q.grade==='correct'?'background:rgba(16,185,129,.15);color:#10b981':q.grade==='partial'?'background:rgba(245,158,11,.15);color:#f59e0b':'background:rgba(239,68,68,.15);color:#ef4444'">
+                      <span x-text="q.grade==='correct'?'✓':q.grade==='partial'?'△':'✗'"></span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <!-- meta -->
+                      <div class="flex items-center flex-wrap gap-1.5 mb-1.5">
+                        <span class="text-xs text-slate-600 font-mono" x-text="'第 '+(i+1)+' 题'"></span>
+                        <span x-show="q.question_type && q.question_type!=='unknown'"
+                          class="badge text-xs" style="background:#0a1525;color:#475569;border:1px solid #1e2d42"
+                          x-text="QTYPE_LABEL[q.question_type]||q.question_type"></span>
+                        <span x-show="q.difficulty"
+                          class="badge text-xs" :style="diffStyle(q.difficulty)"
+                          x-text="DIFF_LABEL[q.difficulty]||q.difficulty"></span>
+                        <span x-show="q.earned_score!==null && q.earned_score!==undefined"
+                          class="badge text-xs font-mono" style="background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.25)"
+                          x-text="q.earned_score+'分'"></span>
+                        <span x-show="q.is_weak_area"
+                          class="badge text-xs" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3)">
+                          ⚠️ 薄弱知识点
+                        </span>
+                      </div>
+                      <!-- question text -->
+                      <p class="text-sm text-slate-300 mb-2 leading-relaxed" x-text="q.question_text||'（题目识别中）'" style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden"></p>
+                      <!-- wrong detail -->
+                      <div x-show="q.grade!=='correct'" class="space-y-1">
+                        <div class="text-xs">
+                          <span class="text-slate-500">你的答案：</span>
+                          <span class="font-mono text-red-400" x-text="q.student_answer||'（未作答）'"></span>
+                        </div>
+                        <div class="text-xs">
+                          <span class="text-slate-500">正确答案：</span>
+                          <span class="font-mono text-green-400" x-text="q.correct_answer||'--'"></span>
+                        </div>
+                        <div x-show="q.error_type" class="text-xs">
+                          <span class="text-slate-500">错误类型：</span>
+                          <span style="color:#f59e0b" x-text="ERR_LABEL[q.error_type]||q.error_type"></span>
+                        </div>
+                        <div x-show="q.brief_comment" class="text-xs mt-1.5 px-3 py-2 rounded-lg"
+                          style="background:#040a14;border-left:2px solid rgba(245,158,11,.4);color:#94a3b8"
+                          x-text="q.brief_comment"></div>
+
+                        <!-- appeal row -->
+                        <div x-show="!q._appealDone" class="flex gap-2 mt-2">
+                          <button class="text-xs px-3 py-1.5 rounded-lg transition-all"
+                            style="background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.2);color:#22d3ee"
+                            :disabled="q._appealLoading"
+                            @click="hwRegrade(q, i)">
+                            <span x-show="!q._appealLoading">🔍 重新AI审题</span>
+                            <span x-show="q._appealLoading" class="spin">⟳</span>
+                          </button>
+                          <button class="text-xs px-3 py-1.5 rounded-lg transition-all"
+                            style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);color:#10b981"
+                            :disabled="q._appealLoading"
+                            @click="hwMarkCorrect(q, i)">
+                            <span x-show="!q._appealLoading">✓ 我做对了</span>
+                            <span x-show="q._appealLoading" class="spin">⟳</span>
+                          </button>
+                        </div>
+
+                        <!-- appeal verdict -->
+                        <div x-show="q._appealVerdict" class="mt-2 px-3 py-2 rounded-lg text-xs"
+                          :style="q._appealVerdict?.grade==='correct'
+                            ? 'background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:#34d399'
+                            : 'background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#f87171'">
+                          <div class="font-semibold mb-0.5"
+                            x-text="q._appealVerdict?.grade==='correct' ? '✓ AI复审：确认正确！错题本已移除。' : '✗ AI复审：维持原判'"></div>
+                          <div x-show="q._appealVerdict?.brief_comment" x-text="q._appealVerdict?.brief_comment" class="text-slate-400"></div>
+                        </div>
+                        <!-- manual override done (no AI regrade verdict) -->
+                        <div x-show="q._appealDone && !q._appealVerdict" class="mt-2 text-xs px-3 py-2 rounded-lg"
+                          style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:#34d399">
+                          ✓ 已手动标记为正确，错题本已更新。
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- action row -->
+            <div class="flex gap-3">
+              <button class="btn-ghost flex-1 md:hidden" @click="hw.showSidebar=true">☰ 历史</button>
+              <button x-show="(hw.result?.wrong_count??0)+(hw.result?.partial_count??0)>0"
+                class="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+                style="background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);color:#a855f7"
+                @click="goTo('wrongbook')">查看错题本 →</button>
+            </div>
+
+          </div>
+        </div><!-- /.max-w-3xl -->
+        </div><!-- /.main area -->
+        </div><!-- /.homework flex wrapper -->
+
+        <!-- ════════ WRONG BOOK ════════ -->
+        <div x-show="page==='wrongbook'" class="fadein">
+
+          <!-- stats bar -->
+          <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="card p-5 cursor-pointer" @click="wb.filter='all'; wb.kpFilter=''; wbFilter()"
+              :style="wb.filter==='all'?'border-color:rgba(34,211,238,.4)':''">
+              <div class="text-xs text-slate-500 mb-1">错题总数</div>
+              <div class="text-2xl font-bold font-mono text-white" x-text="wbStats?.total??0"></div>
+            </div>
+            <div class="card p-5 cursor-pointer" @click="wb.filter='mastered'; wb.kpFilter=''; wbFilter()"
+              :style="wb.filter==='mastered'?'border-color:rgba(16,185,129,.4)':''">
+              <div class="text-xs text-slate-500 mb-1">已掌握 ✓</div>
+              <div class="text-2xl font-bold font-mono" style="color:#10b981" x-text="wbStats?.mastered??0"></div>
+            </div>
+            <div class="card p-5 cursor-pointer" @click="wb.filter='unmastered'; wb.kpFilter=''; wbFilter()"
+              :style="wb.filter==='unmastered'?'border-color:rgba(245,158,11,.4)':''">
+              <div class="text-xs text-slate-500 mb-1">待攻克 🎯</div>
+              <div class="text-2xl font-bold font-mono" style="color:#f59e0b" x-text="wbStats?.unmastered??0"></div>
+            </div>
+            <div class="card p-5">
+              <div class="text-xs text-slate-500 mb-1">掌握率</div>
+              <div class="text-2xl font-bold font-mono" style="color:#22d3ee"
+                x-text="wbStats?.total>0 ? Math.round(wbStats.mastered/wbStats.total*100)+'%' : '--'"></div>
+            </div>
+          </div>
+
+          <!-- KP filter banner：从"我的"页点击知识点跳转时显示 -->
+          <div x-show="wb.kpFilter" x-transition
+            class="flex items-center gap-3 px-4 py-2.5 rounded-xl mb-4"
+            style="background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.28)">
+            <span style="font-size:1rem">📌</span>
+            <div class="flex-1 text-sm">
+              <span class="text-slate-400">正在复习薄弱点：</span>
+              <span class="font-semibold" style="color:#22d3ee" x-text="wb.kpFilter"></span>
+              <span class="text-slate-500 ml-1.5">
+                （<span x-text="wb.filtered.length"></span> 道相关错题）
+              </span>
+            </div>
+            <button @click="reviewStart()" x-show="wb.filtered.length>0"
+              class="text-xs px-3 py-1.5 rounded-lg font-semibold flex-shrink-0 transition-all"
+              style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.4);color:#c084fc"
+              onmouseover="this.style.background='rgba(168,85,247,.28)'"
+              onmouseout="this.style.background='rgba(168,85,247,.15)'">
+              ▶ 进入复习模式
+            </button>
+            <button @click="wbClearKpFilter()"
+              class="text-xs px-2.5 py-1.5 rounded-lg flex-shrink-0 transition-all"
+              style="border:1px solid #1e2d42;color:#475569"
+              onmouseover="this.style.borderColor='#334155';this.style.color='#94a3b8'"
+              onmouseout="this.style.borderColor='#1e2d42';this.style.color='#475569'">
+              × 清除
+            </button>
+          </div>
+
+          <!-- filter + model row -->
+          <div class="flex items-center gap-2 mb-4 flex-wrap">
+            <button class="pill" :class="wb.filter==='all'?'on':''" @click="wb.filter='all'; wb.kpFilter=''; wbFilter()">全部</button>
+            <template x-for="s in subjects" :key="s.v">
+              <button class="pill" :class="wb.filter===s.v?'on':''" @click="wb.filter=s.v; wb.kpFilter=''; wbFilter()" x-text="s.short"></button>
+            </template>
+            <button class="pill ml-auto" :class="wb.filter==='unmastered'?'on':''" @click="wb.filter='unmastered'; wb.kpFilter=''; wbFilter()"
+              style="border-color:rgba(245,158,11,.3)" :style="wb.filter==='unmastered'?'background:rgba(245,158,11,.12);color:#f59e0b;border-color:rgba(245,158,11,.5)':''">
+              待攻克
+            </button>
+            <button class="btn-ghost" @click="wbLoad()" title="刷新">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+          </div>
+
+          <!-- model picker (for explain) -->
+          <div class="flex items-center gap-2 mb-6">
+            <span class="text-xs text-slate-600 uppercase tracking-widest flex-shrink-0">解析模型</span>
+            <button class="pill" :class="wbModel===''?'on':''" @click="wbModel=''">⚙️ 默认</button>
+            <template x-for="m in models" :key="m.key">
+              <button class="pill" :class="wbModel===m.key?'on':''" @click="wbModel=m.key" x-text="m.label"></button>
+            </template>
+          </div>
+
+          <!-- loading -->
+          <div x-show="wb.loading" class="text-center py-16 text-slate-500 fadein">
+            <div class="w-8 h-8 rounded-full spin mx-auto mb-3" style="border:2px solid #162035;border-top-color:#22d3ee"></div>
+            加载中...
+          </div>
+
+          <!-- empty -->
+          <div x-show="!wb.loading && wb.filtered.length===0" class="text-center py-24 fadein">
+            <div style="font-size:3.5rem;margin-bottom:12px">🎉</div>
+            <div class="text-white font-semibold mb-2">暂无错题</div>
+            <div class="text-xs text-slate-500">去批改作业，错题会自动存入这里</div>
+          </div>
+
+          <!-- cards grid -->
+          <div x-show="!wb.loading && wb.filtered.length>0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <template x-for="e in wb.filtered" :key="e.entry_id">
+              <div class="card p-5" :class="e.mastered?'opacity-60':''">
+                <!-- header row -->
+                <div class="flex items-start justify-between mb-3">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="badge" :class="'b-'+e.subject" x-text="SUBJ_LABEL[e.subject]||e.subject"></span>
+                    <span x-show="e.question_type&&e.question_type!=='unknown'"
+                      class="badge" style="background:#0a1525;color:#475569;border:1px solid #1e2d42"
+                      x-text="QTYPE_LABEL[e.question_type]||e.question_type"></span>
+                    <span x-show="e.mastered"
+                      class="badge" style="background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.25)">✓ 已掌握</span>
+                    <span x-show="e.is_weak_area && !e.mastered"
+                      class="badge" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3)">⚠️ 薄弱知识点</span>
+                  </div>
+                  <div x-show="e.grade" class="flex-shrink-0">
+                    <span class="badge font-mono text-xs"
+                      :style="e.grade==='partial'?'background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.25)':'background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)'"
+                      x-text="e.grade==='partial'?'部分正确':'错误'"></span>
+                  </div>
+                </div>
+
+                <!-- question text -->
+                <p class="text-sm text-slate-300 mb-3 leading-relaxed"
+                  style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"
+                  x-text="e.question_text||'（题目内容未录入）'"></p>
+
+                <!-- answers -->
+                <div class="space-y-1 text-xs mb-3">
+                  <div class="flex gap-2">
+                    <span class="text-slate-500 w-16 flex-shrink-0">你的答案：</span>
+                    <span class="text-red-400 font-mono truncate" x-text="e.student_answer||'--'"></span>
+                  </div>
+                  <div class="flex gap-2">
+                    <span class="text-slate-500 w-16 flex-shrink-0">正确答案：</span>
+                    <span class="text-green-400 font-mono truncate" x-text="e.correct_answer||'--'"></span>
+                  </div>
+                  <div x-show="e.error_type" class="flex gap-2">
+                    <span class="text-slate-500 w-16 flex-shrink-0">错误类型：</span>
+                    <span style="color:#f59e0b" x-text="ERR_LABEL[e.error_type]||e.error_type"></span>
+                  </div>
+                </div>
+
+                <!-- knowledge points -->
+                <div x-show="e.knowledge_points?.length" class="flex flex-wrap gap-1 mb-3">
+                  <template x-for="kp in (e.knowledge_points||[]).slice(0,3)" :key="kp">
+                    <span class="badge text-xs" style="background:rgba(34,211,238,.07);color:#22d3ee;border:1px solid rgba(34,211,238,.18)" x-text="kp"></span>
+                  </template>
+                </div>
+
+                <!-- brief comment -->
+                <div x-show="e.brief_comment" class="text-xs px-3 py-2 rounded-lg mb-3"
+                  style="background:#040a14;border-left:2px solid rgba(245,158,11,.35);color:#64748b"
+                  x-text="e.brief_comment"></div>
+
+                <!-- action row -->
+                <div class="flex gap-2 pt-3 border-t border-[#162035]">
+                  <button @click="wbExplain(e)" :disabled="e._explaining"
+                    class="flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all"
+                    style="background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.2);color:#22d3ee"
+                    onmouseover="this.style.background='rgba(34,211,238,.15)'"
+                    onmouseout="this.style.background='rgba(34,211,238,.08)'">
+                    <span x-show="!e._explaining">💡 解析</span>
+                    <span x-show="e._explaining" class="flex items-center gap-1">
+                      <span class="spin" style="border:1.5px solid transparent;border-top-color:#22d3ee;border-radius:50%;width:10px;height:10px"></span>
+                      解析中
+                    </span>
+                  </button>
+                  <button @click="wbMastered(e)"
+                    class="py-2 px-3 rounded-lg text-xs transition-all"
+                    :style="e.mastered?'background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:#10b981':'border:1px solid #162035;color:#475569'"
+                    onmouseover="if(!this.disabled)this.style.borderColor='#334155'"
+                    onmouseout="">
+                    <span x-text="e.mastered?'✓ 掌握':'掌握'"></span>
+                  </button>
+                  <button @click="wbDelete(e.entry_id)"
+                    class="py-2 px-3 rounded-lg text-xs transition-all"
+                    style="border:1px solid #162035;color:#334155"
+                    onmouseover="this.style.borderColor='rgba(239,68,68,.3)';this.style.color='#ef4444'"
+                    onmouseout="this.style.borderColor='#162035';this.style.color='#334155'">✕</button>
+                </div>
+
+                <!-- inline explanation -->
+                <div x-show="e._explanation" x-transition class="mt-4 pt-4 border-t border-[#1e3050]">
+                  <div class="flex items-center gap-2 mb-3">
+                    <span class="text-xs font-semibold" style="color:#22d3ee">✨ AI 解析</span>
+                    <span x-show="e._explanation?.used_rag"
+                      class="badge text-xs" style="background:rgba(168,85,247,.1);color:#c084fc;border:1px solid rgba(168,85,247,.25)">
+                      📚 教材 RAG
+                    </span>
+                  </div>
+                  <div class="md text-sm" x-html="md(e._explanation?.explanation||'')"></div>
+                  <div x-show="e._explanation?.textbook_snippets?.length" class="mt-3">
+                    <div class="text-xs text-slate-500 mb-2">📖 教材原文参考</div>
+                    <template x-for="snp in (e._explanation?.textbook_snippets||[])" :key="snp">
+                      <div class="text-xs text-slate-400 px-3 py-2 mb-1 rounded-lg italic"
+                        style="background:#040a14;border-left:2px solid rgba(168,85,247,.4)" x-text="snp"></div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- ════════ INQUIRE (Chat + Session Sidebar) ════════ -->
+        <div x-show="page==='inquire'" class="fadein flex" style="height:100%;min-height:0">
+
+          <!-- ── session sidebar ── -->
+          <div class="sess-sidebar" :class="iq.showSidebar ? 'open' : ''">
+            <!-- new session button -->
+            <div class="flex-shrink-0 p-3" style="border-bottom:1px solid #0d1e30">
+              <button @click="iqNewSession()"
+                class="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all"
+                style="background:rgba(34,211,238,.07);border:1px dashed rgba(34,211,238,.3);color:#22d3ee"
+                onmouseover="this.style.background='rgba(34,211,238,.14)'"
+                onmouseout="this.style.background='rgba(34,211,238,.07)'">
+                ➕ 新会话
+              </button>
+            </div>
+            <!-- session list -->
+            <div class="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
+              <div x-show="iq.sessionsLoading" class="py-6 text-center text-xs text-slate-600">加载中...</div>
+              <div x-show="!iq.sessionsLoading && iq.sessions.length===0"
+                class="py-8 text-center text-xs text-slate-700 leading-relaxed px-3">
+                还没有历史会话<br>发出第一条消息后自动保存
+              </div>
+              <template x-for="sess in iq.sessions" :key="sess.session_id">
+                <div class="sess-item" :class="sess.session_id===iq.activeSessionId?'active':''"
+                  @click="iqResumeSession(sess); iq.showSidebar=false">
+                  <div class="text-xs font-medium leading-snug truncate"
+                    :style="sess.session_id===iq.activeSessionId?'color:#e2e8f0':'color:#94a3b8'"
+                    x-text="iqSessionTitle(sess)"></div>
+                  <div class="text-xs text-slate-600 mt-0.5 flex items-center gap-1">
+                    <span x-text="(sess.last_updated||'').slice(0,10)"></span>
+                    <span>·</span>
+                    <span x-text="(sess.turn_count||0)+'轮'"></span>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- mobile backdrop -->
+          <div x-show="iq.showSidebar" class="md:hidden fixed inset-0 z-40"
+            style="background:rgba(0,0,0,.55)" @click="iq.showSidebar=false"></div>
+
+          <!-- ── main chat area ── -->
+          <div class="flex-1 flex flex-col min-w-0" style="min-height:0">
+
+          <!-- ── top bar: subject + model ── -->
+          <div class="flex-shrink-0 flex items-center gap-3 px-5 py-2.5 flex-wrap" style="border-bottom:1px solid #0d1e30">
+            <!-- mobile: hamburger to open sidebar -->
+            <button class="md:hidden flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-sm"
+              style="background:#040a14;border:1px solid #162035;color:#475569"
+              @click="iq.showSidebar=true" title="会话列表">☰</button>
+            <span class="text-xs text-slate-600 uppercase tracking-widest flex-shrink-0">科目</span>
+            <div class="flex flex-wrap gap-1.5">
+              <template x-for="s in subjects" :key="s.v">
+                <button class="pill text-xs py-0.5 px-3" :class="iq.subject===s.v?'on':''" @click="iq.subject=s.v" x-text="s.short"></button>
+              </template>
+            </div>
+            <div class="flex gap-1.5 ml-auto flex-shrink-0">
+              <button class="pill text-xs py-0.5 px-3" :class="iqModel===''?'on':''" @click="iqModel=''">默认</button>
+              <template x-for="m in models" :key="m.key">
+                <button class="pill text-xs py-0.5 px-3" :class="iqModel===m.key?'on':''" @click="iqModel=m.key" x-text="m.label"></button>
+              </template>
+            </div>
+            <!-- clear chat -->
+            <button x-show="iq.messages.length" @click="iq.messages=[]"
+              class="text-xs px-3 py-0.5 rounded-lg transition-colors flex-shrink-0"
+              style="border:1px solid #1e2d42;color:#475569"
+              onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#475569'">清空</button>
+          </div>
+
+          <!-- ── messages area ── -->
+          <div class="flex-1 overflow-y-auto px-5 py-5 space-y-5" id="iq-messages">
+
+            <!-- empty state -->
+            <div x-show="iq.messages.length===0" class="text-center py-24 text-slate-600 select-none">
+              <div style="font-size:2.8rem">🔍</div>
+              <div class="mt-3 text-sm text-slate-500">输入题目或上传图片 / PDF，AI 即刻解析</div>
+              <div class="text-xs mt-1 text-slate-700">支持数学·物理·化学·英语·生物·历史·语文，多轮追问</div>
+            </div>
+
+            <!-- message list -->
+            <template x-for="(msg, i) in iq.messages" :key="i">
+              <div>
+                <!-- user bubble (right) -->
+                <div x-show="msg.role==='user'" class="flex justify-end">
+                  <div style="max-width:72%">
+                    <div x-show="msg.fileName" class="text-right mb-1">
+                      <span class="text-xs px-2 py-1 rounded-lg inline-flex items-center gap-1"
+                        style="background:rgba(34,211,238,.08);color:#22d3ee;border:1px solid rgba(34,211,238,.2)">
+                        📎 <span x-text="msg.fileName"></span>
+                      </span>
+                    </div>
+                    <div x-show="msg.content" class="text-sm px-4 py-3 rounded-2xl rounded-tr-sm whitespace-pre-wrap break-words"
+                      style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.18);color:#e2e8f0"
+                      x-text="msg.content"></div>
+                  </div>
+                </div>
+
+                <!-- AI bubble (left) -->
+                <div x-show="msg.role==='ai'" class="flex gap-3">
+                  <div class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold mt-0.5"
+                    style="background:rgba(34,211,238,.12);color:#22d3ee;border:1px solid rgba(34,211,238,.2)">AI</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1.5">
+                      <span x-show="msg.ragUsed" class="text-xs px-2 py-0.5 rounded-full"
+                        style="background:rgba(168,85,247,.1);color:#c084fc;border:1px solid rgba(168,85,247,.2)">📚 教材 RAG</span>
+                    </div>
+                    <!-- thinking -->
+                    <div x-show="msg.thinking" class="flex items-center gap-2 text-slate-500 text-sm">
+                      <span class="spin inline-block" style="border:2px solid #1e3050;border-top-color:#22d3ee;border-radius:50%;width:14px;height:14px"></span>
+                      AI 思考中...
+                    </div>
+                    <!-- response -->
+                    <div x-show="!msg.thinking" class="md text-sm" x-html="md(msg.content||'')"></div>
+                    <!-- snippets -->
+                    <div x-show="!msg.thinking && msg.snippets?.length" class="mt-3 space-y-1.5">
+                      <div class="text-xs text-slate-600">📖 教材参考</div>
+                      <template x-for="snp in (msg.snippets||[])" :key="snp">
+                        <div class="text-xs text-slate-400 px-3 py-2 rounded-lg italic"
+                          style="background:#040a14;border-left:2px solid rgba(168,85,247,.35)" x-text="snp"></div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- ── bottom input bar ── -->
+          <div class="flex-shrink-0 px-4 pb-4 pt-3" style="border-top:1px solid #0d1e30">
+            <!-- pending file chip -->
+            <div x-show="iq.pendingFile" class="flex items-center gap-2 mb-2">
+              <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs flex-1 min-w-0"
+                style="background:#040a14;border:1px solid rgba(34,211,238,.25);color:#22d3ee">
+                <span>📎</span>
+                <span class="truncate flex-1" x-text="iq.pendingFileName"></span>
+                <span x-show="iq.ocrRunning" class="text-slate-400 flex-shrink-0">识别中...</span>
+              </div>
+              <button @click="iq.pendingFile=null;iq.pendingFileName=''"
+                class="px-2.5 py-1.5 text-xs rounded-lg flex-shrink-0"
+                style="border:1px solid #162035;color:#475569">✕</button>
+            </div>
+            <!-- input row -->
+            <div class="flex items-end gap-2">
+              <!-- attach -->
+              <label class="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl cursor-pointer transition-all"
+                style="background:#040a14;border:1px solid #162035;color:#475569;font-size:1.1rem"
+                title="上传图片或PDF"
+                onmouseover="this.style.borderColor='rgba(34,211,238,.35)';this.style.color='#22d3ee'"
+                onmouseout="this.style.borderColor='#162035';this.style.color='#475569'">
+                📎
+                <input type="file" class="hidden" accept="image/*,.pdf" @change="iqFileSelect($event)">
+              </label>
+              <!-- textarea -->
+              <textarea x-model="iq.input" rows="1" id="iq-input"
+                class="flex-1 px-4 py-2.5 text-sm rounded-xl resize-none outline-none transition-all"
+                style="background:#040a14;border:1px solid #162035;color:#cbd5e1;max-height:140px;overflow-y:auto;line-height:1.5"
+                placeholder="输入题目…  Enter 发送，Shift+Enter 换行"
+                @focus="$el.style.borderColor='rgba(34,211,238,.4)'"
+                @blur="$el.style.borderColor='#162035'"
+                @keydown.enter.prevent="if(!$event.shiftKey){ iqSend() } else { iq.input+='\n' }"
+                @input="$el.style.height='auto';$el.style.height=Math.min($el.scrollHeight,140)+'px'">
+              </textarea>
+              <!-- send -->
+              <button @click="iqSend()"
+                :disabled="(!iq.input.trim() && !iq.pendingFile) || iq.sending"
+                class="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl transition-all"
+                :style="(!iq.input.trim()&&!iq.pendingFile)||iq.sending
+                  ? 'background:#040a14;border:1px solid #162035;color:#2d4060;cursor:not-allowed'
+                  : 'background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.35);color:#22d3ee;cursor:pointer'">
+                <span x-show="!iq.sending" style="font-size:1rem">➤</span>
+                <span x-show="iq.sending" class="spin inline-block"
+                  style="border:2px solid rgba(34,211,238,.2);border-top-color:#22d3ee;border-radius:50%;width:14px;height:14px"></span>
+              </button>
+            </div>
+          </div><!-- /input bar -->
+          </div><!-- /main chat area -->
+        </div><!-- /inquire page -->
+
+        <!-- ════════ KNOWLEDGE BASE ════════ -->
+        <div x-show="page==='kb'" class="fadein">
+
+          <!-- ── rename modal ── -->
+          <div x-show="tb.renaming" style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center" @click.self="tbCancelRename()">
+            <div class="card p-6" style="width:340px;min-width:0">
+              <div class="text-sm font-semibold text-white mb-1">重命名文件</div>
+              <div class="text-xs text-slate-500 mb-4">修改该资料的显示名称（不含扩展名）</div>
+              <input id="rename-input" x-model="tb.renameInput"
+                @keydown.enter="tbConfirmRename()" @keydown.escape="tbCancelRename()"
+                class="w-full rounded-xl px-4 py-2.5 text-sm text-white mb-4"
+                style="background:#060f1c;border:1px solid #1e3050;outline:none"
+                placeholder="例如：英语教材_人教版2024">
+              <div class="flex gap-3 justify-end">
+                <button class="text-xs px-4 py-2 rounded-lg text-slate-400 hover:text-white transition-colors" @click="tbCancelRename()">取消</button>
+                <button class="btn-neon text-xs px-4 py-2" @click="tbConfirmRename()">确认</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── delete confirm modal ── -->
+          <div x-show="tb.deleting" style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center" @click.self="tb.deleting=null">
+            <div class="card p-6" style="width:320px">
+              <div class="text-sm font-semibold text-white mb-2">⚠️ 确认删除？</div>
+              <div class="text-xs text-slate-400 mb-5">将删除该科目的 PDF 文件及向量索引，操作不可撤销。</div>
+              <div class="flex gap-3 justify-end">
+                <button class="text-xs px-4 py-2 rounded-lg text-slate-400 hover:text-white transition-colors" @click="tb.deleting=null">取消</button>
+                <button class="text-xs px-4 py-2 rounded-lg transition-all font-medium"
+                  style="background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)"
+                  @click="tbConfirmDelete()">删除</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-6">
+            <div class="max-w-3xl mx-auto space-y-5">
+
+              <!-- header -->
+              <div class="flex items-center justify-between mb-2">
+                <div>
+                  <div class="text-xs text-slate-500 uppercase tracking-widest mb-1">知识库 · 教材管理</div>
+                  <div class="text-slate-400 text-xs">上传教材 PDF 后，题目问询与错题解析将自动检索相关教材内容（RAG 增强）</div>
+                </div>
+                <button class="text-xs px-3 py-1.5 rounded-lg text-slate-400 transition-colors hover:text-white"
+                  style="border:1px solid #1e2d42" @click="tbLoadStatus()">🔄 刷新</button>
+              </div>
+
+              <!-- ── textbook list ── -->
+              <div class="card p-5">
+                <div class="text-xs text-slate-500 uppercase tracking-widest mb-4">已注册教材</div>
+
+                <div x-show="tb.loading" class="text-xs text-slate-600 py-6 text-center">加载中...</div>
+
+                <div x-show="!tb.loading" class="space-y-3">
+                  <template x-for="s in tb.status" :key="s.subject">
+                    <div class="flex items-center gap-4 rounded-xl px-4 py-3.5 transition-all"
+                      style="background:#040a14;border:1px solid #162035">
+
+                      <!-- subject icon + name -->
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-0.5">
+                          <span class="text-sm font-semibold text-white whitespace-nowrap"
+                            x-text="s.label"></span>
+                        </div>
+                        <div class="text-xs text-slate-500 truncate"
+                          x-text="s.pdf_exists ? ((s.custom_name || s.pdf_filename) + ' · ' + s.file_size_kb + ' KB') : '未上传 PDF'">
+                        </div>
+                      </div>
+
+                      <!-- status badge -->
+                      <div class="flex-shrink-0">
+                        <span x-show="s.indexed" class="text-xs px-2 py-0.5 rounded-full"
+                          style="background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.25)">✓ 已索引</span>
+                        <span x-show="!s.indexed && s.pdf_exists" class="text-xs px-2 py-0.5 rounded-full"
+                          style="background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.25)">待索引</span>
+                        <span x-show="!s.pdf_exists" class="text-xs px-2 py-0.5 rounded-full"
+                          style="background:rgba(239,68,68,.08);color:#f87171;border:1px solid rgba(239,68,68,.2)">未上传</span>
+                      </div>
+
+                      <!-- action buttons -->
+                      <div class="flex items-center gap-2 flex-shrink-0">
+                        <!-- open PDF -->
+                        <button x-show="s.pdf_exists"
+                          class="text-xs px-2.5 py-1.5 rounded-lg transition-all"
+                          style="background:rgba(34,211,238,.06);color:#22d3ee;border:1px solid rgba(34,211,238,.2)"
+                          @click="tbOpenFile(s.subject)"
+                          title="在新标签页打开 PDF">📖 打开</button>
+                        <!-- reindex -->
+                        <button x-show="s.pdf_exists && !s.indexed"
+                          class="text-xs px-3 py-1.5 rounded-lg transition-all"
+                          style="background:rgba(245,158,11,.08);color:#f59e0b;border:1px solid rgba(245,158,11,.25)"
+                          @click="tbReindex(s.subject)">⚡ 索引</button>
+                        <!-- rename -->
+                        <button x-show="s.pdf_exists"
+                          class="text-xs px-3 py-1.5 rounded-lg transition-all"
+                          style="background:rgba(148,163,184,.06);color:#94a3b8;border:1px solid #1e2d42"
+                          @click="tbStartRename(s.subject, s.custom_name || s.pdf_filename.replace(/\.pdf$/i, ''))"
+                          title="重命名文件">✏️</button>
+                        <!-- delete -->
+                        <button x-show="s.pdf_exists"
+                          class="text-xs px-3 py-1.5 rounded-lg transition-all"
+                          style="background:rgba(239,68,68,.06);color:#f87171;border:1px solid rgba(239,68,68,.2)"
+                          @click="tbAskDelete(s.subject)"
+                          title="删除 PDF 和索引">🗑️</button>
+                      </div>
+
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- ── upload form ── -->
+              <div class="card p-5">
+                <div class="text-xs text-slate-500 uppercase tracking-widest mb-4">上传新教材 PDF</div>
+                <div class="flex gap-3 items-end flex-wrap">
+                  <!-- subject -->
+                  <div class="flex-shrink-0">
+                    <div class="text-xs text-slate-600 mb-1.5">科目</div>
+                    <div class="flex gap-1 flex-wrap">
+                      <template x-for="s in tb.supportedSubjects" :key="s.v">
+                        <button class="pill text-xs" :class="tb.uploadSubject===s.v?'on':''"
+                          @click="tb.uploadSubject=s.v" x-text="s.label"></button>
+                      </template>
+                    </div>
+                  </div>
+                  <!-- file -->
+                  <div class="flex-1 min-w-48">
+                    <div class="text-xs text-slate-600 mb-1.5">文件</div>
+                    <label class="flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all"
+                      style="background:#060f1c;border:1px dashed #1e3050;color:#475569"
+                      onmouseover="this.style.borderColor='rgba(34,211,238,.3)'"
+                      onmouseout="this.style.borderColor='#1e3050'">
+                      <span>📄</span>
+                      <span class="text-sm truncate" x-text="tb.uploadFile ? tb.uploadFile.name : '选择 PDF 文件'"></span>
+                      <input type="file" class="hidden" accept=".pdf" @change="tbFileSelect($event)">
+                    </label>
+                  </div>
+                  <!-- button -->
+                  <button class="btn-neon py-2.5 px-5 flex-shrink-0"
+                    :disabled="!tb.uploadFile || tb.uploading" @click="tbUpload()">
+                    <span x-show="!tb.uploading">⬆️ 上传并索引</span>
+                    <span x-show="tb.uploading" class="flex items-center gap-2">
+                      <span class="spin" style="border:2px solid rgba(3,8,16,.3);border-top-color:#030810;border-radius:50%;width:12px;height:12px"></span>上传中
+                    </span>
+                  </button>
+                </div>
+                <div x-show="tb.uploadMsg" class="text-xs mt-3" style="color:#22d3ee" x-text="tb.uploadMsg"></div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ════════ PROFILE ════════ -->
+        <div x-show="page==='profile'" class="fadein">
+
+          <div x-show="prof.loading" class="text-center py-16 text-slate-500 fadein">
+            <div class="w-8 h-8 rounded-full spin mx-auto mb-3" style="border:2px solid #162035;border-top-color:#22d3ee"></div>
+            加载档案中...
+          </div>
+
+          <div x-show="!prof.loading" class="space-y-5">
+
+            <!-- top row: streak + preferences -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+              <!-- streak card -->
+              <div class="card p-6">
+                <h3 class="text-xs text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <span>🔥</span> 连续学习
+                </h3>
+                <div class="text-4xl font-bold font-mono grad" x-text="(prof.streak?.current_streak??0)+'天'"></div>
+                <div class="text-xs text-slate-500 mt-1">历史最长 <span class="font-mono" style="color:#22d3ee" x-text="prof.streak?.longest_streak??0"></span> 天</div>
+                <div class="text-xs text-slate-600 mt-1">累计学习 <span class="font-mono" x-text="prof.streak?.total_study_days??0"></span> 天</div>
+              </div>
+
+              <!-- personal info card -->
+              <div class="md:col-span-2 card p-6">
+                <h3 class="text-xs text-slate-500 uppercase tracking-widest mb-4">👤 个人信息</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <div class="text-xs text-slate-600 mb-1">昵称</div>
+                    <input class="w-full bg-transparent border border-slate-700 rounded px-2 py-1 text-sm text-white focus:border-cyan-500 outline-none"
+                      placeholder="输入你的昵称"
+                      x-model="prof.pref.nickname"
+                      @change="savePref()">
+                  </div>
+                  <div>
+                    <div class="text-xs text-slate-600 mb-1">年级 / 学期</div>
+                    <select class="w-full bg-transparent border border-slate-700 rounded px-2 py-1 text-sm text-white focus:border-cyan-500 outline-none"
+                      style="background:#040a14"
+                      x-model="prof.pref.grade"
+                      @change="savePref()">
+                      <option value="" style="background:#040a14">请选择</option>
+                      <optgroup label="小学" style="background:#040a14">
+                        <template x-for="g in ['小学一年级上册','小学一年级下册','小学二年级上册','小学二年级下册','小学三年级上册','小学三年级下册','小学四年级上册','小学四年级下册','小学五年级上册','小学五年级下册','小学六年级上册','小学六年级下册']" :key="g">
+                          <option :value="g" style="background:#040a14" x-text="g"></option>
+                        </template>
+                      </optgroup>
+                      <optgroup label="初中" style="background:#040a14">
+                        <template x-for="g in ['初一上册','初一下册','初二上册','初二下册','初三上册','初三下册']" :key="g">
+                          <option :value="g" style="background:#040a14" x-text="g"></option>
+                        </template>
+                      </optgroup>
+                      <optgroup label="高中" style="background:#040a14">
+                        <template x-for="g in ['高一上册','高一下册','高二上册','高二下册','高三上册','高三下册']" :key="g">
+                          <option :value="g" style="background:#040a14" x-text="g"></option>
+                        </template>
+                      </optgroup>
+                    </select>
+                  </div>
+                  <div>
+                    <div class="text-xs text-slate-600 mb-1">性别</div>
+                    <div class="flex gap-2">
+                      <button class="pill text-xs" :class="prof.pref.gender==='male'?'on':''" @click="prof.pref.gender='male'; savePref()">男生</button>
+                      <button class="pill text-xs" :class="prof.pref.gender==='female'?'on':''" @click="prof.pref.gender='female'; savePref()">女生</button>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-slate-600 mb-1">MBTI 性格</div>
+                    <select class="w-full bg-transparent border border-slate-700 rounded px-2 py-1 text-sm text-white focus:border-cyan-500 outline-none"
+                      style="background:#040a14"
+                      x-model="prof.pref.mbti"
+                      @change="savePref()">
+                      <option value="" style="background:#040a14">不知道 / 暂不填</option>
+                      <optgroup label="分析家型" style="background:#040a14">
+                        <option value="INTJ" style="background:#040a14">INTJ — 建筑师</option>
+                        <option value="INTP" style="background:#040a14">INTP — 逻辑学家</option>
+                        <option value="ENTJ" style="background:#040a14">ENTJ — 指挥官</option>
+                        <option value="ENTP" style="background:#040a14">ENTP — 辩论家</option>
+                      </optgroup>
+                      <optgroup label="外交家型" style="background:#040a14">
+                        <option value="INFJ" style="background:#040a14">INFJ — 提倡者</option>
+                        <option value="INFP" style="background:#040a14">INFP — 调停者</option>
+                        <option value="ENFJ" style="background:#040a14">ENFJ — 主人公</option>
+                        <option value="ENFP" style="background:#040a14">ENFP — 竞选者</option>
+                      </optgroup>
+                      <optgroup label="守护者型" style="background:#040a14">
+                        <option value="ISTJ" style="background:#040a14">ISTJ — 物流师</option>
+                        <option value="ISFJ" style="background:#040a14">ISFJ — 守卫者</option>
+                        <option value="ESTJ" style="background:#040a14">ESTJ — 总经理</option>
+                        <option value="ESFJ" style="background:#040a14">ESFJ — 执政官</option>
+                      </optgroup>
+                      <optgroup label="探险家型" style="background:#040a14">
+                        <option value="ISTP" style="background:#040a14">ISTP — 鉴赏家</option>
+                        <option value="ISFP" style="background:#040a14">ISFP — 探险家</option>
+                        <option value="ESTP" style="background:#040a14">ESTP — 企业家</option>
+                        <option value="ESFP" style="background:#040a14">ESFP — 表演者</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                </div>
+                <div x-show="prof.prefSaved" class="text-xs mt-3" style="color:#10b981">✓ 个人信息已保存</div>
+              </div>
+            </div>
+
+            <!-- preferences card (second row) -->
+            <div class="card p-6">
+              <h3 class="text-xs text-slate-500 uppercase tracking-widest mb-4">⚙️ 解释偏好</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                  <div>
+                    <div class="text-xs text-slate-600 mb-2">详细程度</div>
+                    <div class="flex gap-2">
+                      <button class="pill text-xs" :class="prof.pref.explanation_length==='brief'?'on':''" @click="prof.pref.explanation_length='brief'; savePref()">简短</button>
+                      <button class="pill text-xs" :class="prof.pref.explanation_length==='standard'?'on':''" @click="prof.pref.explanation_length='standard'; savePref()">适中</button>
+                      <button class="pill text-xs" :class="prof.pref.explanation_length==='detailed'?'on':''" @click="prof.pref.explanation_length='detailed'; savePref()">详细</button>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-slate-600 mb-2">讲解风格</div>
+                    <div class="flex gap-2">
+                      <button class="pill text-xs" :class="prof.pref.explanation_style==='vivid'?'on':''" @click="prof.pref.explanation_style='vivid'; savePref()">生动形象</button>
+                      <button class="pill text-xs" :class="prof.pref.explanation_style==='objective'?'on':''" @click="prof.pref.explanation_style='objective'; savePref()">简洁客观</button>
+                    </div>
+                  </div>
+                </div>
+                <div x-show="prof.prefSaved" class="text-xs mt-3" style="color:#10b981">✓ 偏好已保存，下次讲解生效</div>
+              </div>
+            </div>
+
+            <!-- performance trend chart -->
+            <div class="card p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xs text-slate-500 uppercase tracking-widest flex items-center gap-2"><span>📈</span> 成绩趋势</h3>
+                <div class="flex gap-2">
+                  <button class="pill text-xs" :class="prof.trendType==='all'?'on':''" @click="prof.trendType='all'">全部</button>
+                  <button class="pill text-xs" :class="prof.trendType==='homework'?'on':''" @click="prof.trendType='homework'">作业</button>
+                  <button class="pill text-xs" :class="prof.trendType==='exam'?'on':''" @click="prof.trendType='exam'">考试</button>
+                </div>
+              </div>
+
+              <!-- SVG chart -->
+              <div x-show="profTrendPoints().length>0">
+                <svg width="100%" height="120" viewBox="0 0 600 120" preserveAspectRatio="none">
+                  <!-- grid lines -->
+                  <line x1="0" y1="30" x2="600" y2="30" stroke="#162035" stroke-width="1"/>
+                  <line x1="0" y1="60" x2="600" y2="60" stroke="#162035" stroke-width="1"/>
+                  <line x1="0" y1="90" x2="600" y2="90" stroke="#162035" stroke-width="1"/>
+                  <!-- y labels -->
+                  <text x="4" y="34" fill="#334155" font-size="9">75%</text>
+                  <text x="4" y="64" fill="#334155" font-size="9">50%</text>
+                  <text x="4" y="94" fill="#334155" font-size="9">25%</text>
+                  <!-- area fill -->
+                  <path :d="profAreaPath()" fill="url(#agrad)" opacity="0.3"/>
+                  <defs>
+                    <linearGradient id="agrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#22d3ee"/>
+                      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <!-- line -->
+                  <polyline :points="profLinePoints()" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+                  <!-- dots -->
+                  <template x-for="(pt,i) in profTrendPoints()" :key="i">
+                    <circle :cx="pt.x" :cy="pt.y" r="4"
+                      :fill="pt.type==='exam'?'#a855f7':'#22d3ee'" stroke="#050b17" stroke-width="2"/>
+                  </template>
+                </svg>
+                <!-- legend -->
+                <div class="flex gap-4 mt-2">
+                  <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                    <div class="w-2 h-2 rounded-full" style="background:#22d3ee"></div>作业
+                  </div>
+                  <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                    <div class="w-2 h-2 rounded-full" style="background:#a855f7"></div>考试
+                  </div>
+                  <!-- anxiety alert -->
+                  <div x-show="prof.summary?.exam_anxiety_flag"
+                    class="ml-auto text-xs px-3 py-1 rounded-full"
+                    style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b">
+                    ⚠️ 检测到考试焦虑倾向，平时比考试好 15%+
+                  </div>
+                </div>
+              </div>
+              <!-- empty -->
+              <div x-show="profTrendPoints().length===0" class="text-center py-8 text-slate-600 text-sm">
+                暂无成绩记录，批改作业/考试后自动统计
+              </div>
+            </div>
+
+            <!-- subject strength + knowledge gaps -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+              <!-- subject strength -->
+              <div class="card p-6">
+                <h3 class="text-xs text-slate-500 uppercase tracking-widest mb-4">💪 各科平均正确率</h3>
+                <div class="space-y-3">
+                  <template x-for="s in subjects" :key="s.v">
+                    <div class="flex items-center gap-3">
+                      <span class="text-xs text-slate-500 w-10 flex-shrink-0 text-right" x-text="s.short"></span>
+                      <div class="flex-1 rounded-full h-2 overflow-hidden" style="background:#0a1525">
+                        <div class="h-full rounded-full transition-all duration-700"
+                          :style="'width:'+(Math.round((prof.summary?.subject_avg?.[s.v]??0)*100))+'%;background:'+SUBJ_COLORS[s.v]"></div>
+                      </div>
+                      <span class="text-xs font-mono w-10 text-right"
+                        :style="'color:'+SUBJ_COLORS[s.v]"
+                        x-text="prof.summary?.subject_avg?.[s.v]!=null ? Math.round(prof.summary.subject_avg[s.v]*100)+'%' : '--'"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- knowledge gaps -->
+              <div class="card p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-xs text-slate-500 uppercase tracking-widest">🎯 薄弱知识点</h3>
+                  <span class="text-xs text-slate-600">点击知识点可前往练习</span>
+                </div>
+                <div x-show="Object.keys(prof.gaps||{}).length===0" class="text-xs text-slate-600 py-4 text-center">
+                  暂无数据，批改作业后自动积累
+                </div>
+                <div class="space-y-3">
+                  <template x-for="s in subjects" :key="s.v">
+                    <div x-show="(prof.gaps?.[s.v]||[]).length>0">
+                      <div class="text-xs font-semibold mb-1.5" :style="'color:'+SUBJ_COLORS[s.v]" x-text="SUBJ_LABEL[s.v]"></div>
+                      <div class="flex flex-wrap gap-1.5">
+                        <template x-for="kp in (prof.gaps[s.v]||[]).slice(-5)" :key="kp">
+                          <button
+                            :class="['kp-chip', wbKpCount(kp, s.v)===0 ? 'no-match' : '']"
+                            @click="goToWrongBookByKP(kp, s.v)"
+                            :title="wbKpCount(kp, s.v)>0 ? wbKpCount(kp, s.v)+'道相关错题，点击练习' : '暂无相关错题'">
+                            <span x-text="kp"></span>
+                            <!-- 数字角标：有匹配错题才显示 -->
+                            <span x-show="wbKpCount(kp, s.v)>0"
+                              class="font-mono leading-none"
+                              style="background:rgba(34,211,238,.28);border-radius:3px;padding:1px 4px;font-size:.6rem"
+                              x-text="wbKpCount(kp, s.v)"></span>
+                          </button>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- recent records -->
+            <div class="card p-6">
+              <h3 class="text-xs text-slate-500 uppercase tracking-widest mb-4">📋 近期成绩记录</h3>
+              <div x-show="(prof.records||[]).length===0" class="text-xs text-slate-600 py-4 text-center">
+                暂无记录
+              </div>
+              <div class="space-y-2">
+                <template x-for="r in (prof.records||[]).slice(0,10)" :key="r.record_id">
+                  <div class="flex items-center gap-3 py-2.5 border-b border-[#0c1828]">
+                    <span class="badge" :class="'b-'+r.subject" x-text="SUBJ_LABEL[r.subject]||r.subject"></span>
+                    <span class="badge text-xs"
+                      :style="r.record_type==='exam'?'background:rgba(168,85,247,.1);color:#c084fc;border:1px solid rgba(168,85,247,.25)':'background:rgba(34,211,238,.07);color:#22d3ee;border:1px solid rgba(34,211,238,.18)'"
+                      x-text="r.record_type==='exam'?'考试':'作业'"></span>
+                    <span x-show="r.exam_name" class="text-xs text-slate-400" x-text="r.exam_name"></span>
+                    <div class="flex-1"></div>
+                    <span class="text-sm font-bold font-mono"
+                      :style="r.accuracy_rate>=0.8?'color:#10b981':r.accuracy_rate>=0.6?'color:#f59e0b':'color:#ef4444'"
+                      x-text="Math.round(r.accuracy_rate*100)+'%'"></span>
+                    <span class="text-xs text-slate-600 font-mono w-20 text-right" x-text="r.recorded_at?.slice(0,10)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- textbook management shortcut -->
+            <div class="card p-5 mt-5 flex items-center justify-between">
+              <div>
+                <div class="text-xs text-slate-500 uppercase tracking-widest mb-1">📚 知识库</div>
+                <div class="text-xs text-slate-600">
+                  已上传：<span style="color:#22d3ee" x-text="tb.status.filter(s=>s.pdf_exists).length"></span> 个教材，
+                  已索引：<span style="color:#10b981" x-text="tb.status.filter(s=>s.indexed).length"></span> 个
+                </div>
+              </div>
+              <button class="text-xs px-4 py-2 rounded-lg transition-all"
+                style="background:rgba(34,211,238,.08);color:#22d3ee;border:1px solid rgba(34,211,238,.2)"
+                @click="goTo('kb')">管理知识库 →</button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ════════ HISTORY ════════ -->
+        <div x-show="page==='history'" class="fadein flex-1 overflow-y-auto p-4 md:p-8 mob-scroll" style="min-height:0">
+          <div class="space-y-6">
+
+          <!-- Tab selector -->
+          <div class="flex gap-2">
+            <button @click="hist.tab='homework'"
+              :class="hist.tab==='homework' ? 'btn-neon' : 'text-slate-400 hover:text-cyan-400'"
+              class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              :style="hist.tab!=='homework' ? 'background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.15)' : ''">
+              📸 作业批改记录
+            </button>
+            <button @click="hist.tab='chat'"
+              :class="hist.tab==='chat' ? 'btn-neon' : 'text-slate-400 hover:text-cyan-400'"
+              class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              :style="hist.tab!=='chat' ? 'background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.15)' : ''">
+              💬 答疑会话记录
+            </button>
+          </div>
+
+          <!-- ── Homework history ── -->
+          <div x-show="hist.tab==='homework'">
+
+            <!-- loading -->
+            <div x-show="hist.hw.loading" class="text-center py-12 text-slate-500">
+              <div class="w-7 h-7 rounded-full spin mx-auto mb-3" style="border:2px solid #162035;border-top-color:#22d3ee"></div>
+              加载中...
+            </div>
+
+            <!-- empty -->
+            <div x-show="hist.hw.loaded && !hist.hw.loading && hist.hw.list.length===0" class="text-center py-16 text-slate-600">
+              <div class="text-4xl mb-3">📋</div>
+              <div>暂无批改记录，上传作业后记录会自动保存在这里。</div>
+            </div>
+
+            <!-- detail view -->
+            <div x-show="hist.hw.detail" class="space-y-4">
+              <button @click="hist.hw.detail=null" class="flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
+                ← 返回列表
+              </button>
+              <template x-if="hist.hw.detail">
+                <div class="space-y-4">
+                  <!-- summary card -->
+                  <div class="card p-5">
+                    <div class="flex items-center justify-between mb-3">
+                      <div>
+                        <span class="text-white font-semibold" x-text="({math:'数学',physics:'物理',chemistry:'化学',english:'英语',chinese:'语文',history:'历史',biology:'生物',politics:'政治',geography:'地理'}[hist.hw.detail.subject]||hist.hw.detail.subject)"></span>
+                        <span class="ml-2 text-xs text-slate-500" x-text="hist.hw.detail.graded_at?.slice(0,16).replace('T',' ')"></span>
+                      </div>
+                      <div class="text-2xl font-bold font-mono grad" x-text="hist.hw.detail.total_questions>0 ? Math.round(hist.hw.detail.correct_count/hist.hw.detail.total_questions*100)+'%' : '--'"></div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-3 text-center">
+                      <div class="rounded-lg p-2" style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2)">
+                        <div class="text-lg font-bold font-mono" style="color:#10b981" x-text="hist.hw.detail.correct_count"></div>
+                        <div class="text-xs text-slate-500 mt-0.5">正确</div>
+                      </div>
+                      <div class="rounded-lg p-2" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2)">
+                        <div class="text-lg font-bold font-mono" style="color:#ef4444" x-text="hist.hw.detail.wrong_count"></div>
+                        <div class="text-xs text-slate-500 mt-0.5">错误</div>
+                      </div>
+                      <div class="rounded-lg p-2" style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2)">
+                        <div class="text-lg font-bold font-mono" style="color:#f59e0b" x-text="hist.hw.detail.partial_count"></div>
+                        <div class="text-xs text-slate-500 mt-0.5">部分</div>
+                      </div>
+                      <div class="rounded-lg p-2" style="background:rgba(100,116,139,.08);border:1px solid rgba(100,116,139,.2)">
+                        <div class="text-lg font-bold font-mono text-slate-400" x-text="hist.hw.detail.blank_count"></div>
+                        <div class="text-xs text-slate-500 mt-0.5">未答</div>
+                      </div>
+                    </div>
+                    <!-- tags -->
+                    <div x-show="hist.hw.detail.exam_tags?.length" class="mt-3 flex flex-wrap gap-1">
+                      <template x-for="tag in (hist.hw.detail.exam_tags||[])" :key="tag">
+                        <span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(168,85,247,.1);color:#c084fc;border:1px solid rgba(168,85,247,.25)" x-text="tag"></span>
+                      </template>
+                    </div>
+                    <div x-show="hist.hw.detail.weak_knowledge_points?.length" class="mt-2 flex flex-wrap gap-1">
+                      <span class="text-xs text-slate-500">薄弱点：</span>
+                      <template x-for="kp in (hist.hw.detail.weak_knowledge_points||[])" :key="kp">
+                        <span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(239,68,68,.08);color:#f87171;border:1px solid rgba(239,68,68,.2)" x-text="kp"></span>
+                      </template>
+                    </div>
+                  </div>
+                  <!-- questions list -->
+                  <div class="space-y-3">
+                    <template x-for="q in (hist.hw.detail.questions||[])" :key="q.number">
+                      <div class="card p-4">
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                              <span class="text-xs font-mono text-slate-400">题 <span x-text="q.number"></span></span>
+                              <span class="text-xs px-1.5 py-0.5 rounded"
+                                :style="q.grade==='correct'?'background:rgba(16,185,129,.1);color:#10b981':q.grade==='wrong'?'background:rgba(239,68,68,.1);color:#ef4444':q.grade==='partial'?'background:rgba(245,158,11,.1);color:#f59e0b':'background:rgba(100,116,139,.1);color:#94a3b8'"
+                                x-text="{correct:'✓ 正确',wrong:'✗ 错误',partial:'△ 部分',blank:'○ 未答',skip:'— 跳过'}[q.grade]||q.grade"></span>
+                            </div>
+                            <div class="text-sm text-slate-300 line-clamp-2" x-text="q.question_text"></div>
+                            <div x-show="q.brief_comment" class="text-xs text-slate-500 mt-1 italic" x-text="q.brief_comment"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- list view -->
+            <div x-show="hist.hw.loaded && !hist.hw.loading && !hist.hw.detail && hist.hw.list.length>0" class="space-y-3">
+              <template x-for="rec in hist.hw.list" :key="rec.id">
+                <div class="card p-4 cursor-pointer hover:border-cyan-500/30 transition-all" @click="histLoadHWDetail(rec.id)">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="flex items-center gap-2 mb-1">
+                        <span class="font-medium text-white text-sm" x-text="rec.subject_cn"></span>
+                        <span class="text-xs text-slate-500" x-text="rec.graded_at?.slice(0,16).replace('T',' ')"></span>
+                      </div>
+                      <div class="text-xs text-slate-400">
+                        共 <span class="font-mono text-slate-300" x-text="rec.total_questions"></span> 题 ·
+                        正确 <span class="font-mono" style="color:#10b981" x-text="rec.correct_count"></span> ·
+                        错误 <span class="font-mono" style="color:#ef4444" x-text="rec.wrong_count"></span>
+                        <template x-if="rec.partial_count>0">
+                          <span> · 部分 <span class="font-mono" style="color:#f59e0b" x-text="rec.partial_count"></span></span>
+                        </template>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-xl font-bold font-mono grad" x-text="Math.round(rec.accuracy_rate*100)+'%'"></div>
+                      <div class="text-xs text-slate-500 mt-0.5">正确率</div>
+                    </div>
+                  </div>
+                  <div x-show="rec.weak_knowledge_points?.length" class="mt-2 flex flex-wrap gap-1">
+                    <template x-for="kp in (rec.weak_knowledge_points||[]).slice(0,4)" :key="kp">
+                      <span class="text-xs px-1.5 py-0.5 rounded" style="background:rgba(239,68,68,.08);color:#f87171;border:1px solid rgba(239,68,68,.2)" x-text="kp"></span>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+          </div><!-- /homework tab -->
+
+          <!-- ── Chat history ── -->
+          <div x-show="hist.tab==='chat'">
+
+            <!-- loading -->
+            <div x-show="hist.chat.loading" class="text-center py-12 text-slate-500">
+              <div class="w-7 h-7 rounded-full spin mx-auto mb-3" style="border:2px solid #162035;border-top-color:#22d3ee"></div>
+              加载中...
+            </div>
+
+            <!-- empty -->
+            <div x-show="hist.chat.loaded && !hist.chat.loading && hist.chat.list.length===0" class="text-center py-16 text-slate-600">
+              <div class="text-4xl mb-3">💬</div>
+              <div>暂无答疑记录，和 AI 问答后记录会出现在这里。</div>
+            </div>
+
+            <!-- detail view -->
+            <div x-show="hist.chat.detail">
+              <button @click="hist.chat.detail=null" class="flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors mb-4">
+                ← 返回列表
+              </button>
+              <template x-if="hist.chat.detail">
+                <div class="space-y-3">
+                  <div class="card p-4">
+                    <div class="flex items-center gap-3">
+                      <span class="font-medium text-white" x-text="({math:'数学',physics:'物理',chemistry:'化学',english:'英语',chinese:'语文',history:'历史',biology:'生物',politics:'政治',geography:'地理'}[hist.chat.detail.subject]||hist.chat.detail.subject||'综合')"></span>
+                      <span class="text-xs text-slate-500" x-text="'共 '+(hist.chat.detail.turn_count||0)+' 轮问答'"></span>
+                    </div>
+                    <div x-show="hist.chat.detail.compressed_summary" class="mt-2 text-sm text-slate-400 italic" x-text="'摘要：'+hist.chat.detail.compressed_summary?.slice(0,120)"></div>
+                  </div>
+                  <div class="space-y-2">
+                    <template x-for="(msg, i) in (hist.chat.detail.messages||[])" :key="i">
+                      <div :class="msg.role==='user' ? 'flex justify-end' : 'flex justify-start'">
+                        <div class="max-w-[85%] rounded-xl px-4 py-2.5 text-sm"
+                          :style="msg.role==='user' ? 'background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.2);color:#e2e8f0' : 'background:#0c1828;border:1px solid #162035;color:#cbd5e1'">
+                          <div x-html="md(msg.content)"></div>
+                          <div class="text-xs mt-1" style="color:#475569" x-text="msg.timestamp?.slice(0,16).replace('T',' ')"></div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- list view -->
+            <div x-show="hist.chat.loaded && !hist.chat.loading && !hist.chat.detail && hist.chat.list.length>0" class="space-y-3">
+              <template x-for="sess in hist.chat.list" :key="sess.session_id">
+                <div class="card p-4 cursor-pointer hover:border-cyan-500/30 transition-all" @click="histLoadChatDetail(sess.session_id)">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 mb-1">
+                        <span class="font-medium text-white text-sm" x-text="({math:'数学',physics:'物理',chemistry:'化学',english:'英语',chinese:'语文',history:'历史',biology:'生物',politics:'政治',geography:'地理'}[sess.subject]||sess.subject||'综合')"></span>
+                        <span class="text-xs text-slate-500" x-text="sess.last_updated?.slice(0,16).replace('T',' ')"></span>
+                      </div>
+                      <div class="text-xs text-slate-500 truncate" x-text="sess.preview || '（无预览）'"></div>
+                    </div>
+                    <div class="text-xs font-mono text-slate-500 flex-shrink-0" x-text="sess.turn_count + ' 轮'"></div>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+          </div><!-- /chat tab -->
+
+          </div><!-- /inner space-y-6 wrapper -->
+        </div><!-- /history page -->
+
+      </div><!-- /page content -->
+    </div><!-- /main -->
+  </div><!-- /flex -->
+
+  <!-- ═══════ MOBILE BOTTOM TAB BAR ═══════ -->
+  <nav class="btab-bar md:hidden">
+    <template x-for="item in navItems" :key="item.id">
+      <button class="btab-btn" :class="page===item.id ? 'on' : ''" @click="goTo(item.id)">
+        <!-- active top line -->
+        <div class="tline" x-show="page===item.id"></div>
+        <!-- icon -->
+        <span class="ti" x-text="item.icon"></span>
+        <!-- label -->
+        <span class="tl" x-text="item.label"></span>
+        <!-- badge -->
+        <span class="tb" x-show="item.badge>0" x-text="item.badge"></span>
+      </button>
+    </template>
+  </nav>
+
+  <!-- ═══════ REVIEW MODE OVERLAY ═══════ -->
+  <div x-show="review.active" x-transition
+    style="position:fixed;inset:0;background:rgba(2,8,20,.96);backdrop-filter:blur(10px);z-index:400;overflow-y:auto;">
+    <div class="min-h-full flex flex-col items-center justify-center px-6 py-12">
+
+      <!-- top bar -->
+      <div class="w-full max-w-2xl flex items-center justify-between mb-8">
+        <div>
+          <div class="text-xs text-slate-500 uppercase tracking-widest mb-0.5">复习模式</div>
+          <div class="flex items-center gap-2">
+            <span x-show="review.kp"
+              class="badge" style="background:rgba(34,211,238,.12);color:#22d3ee;border:1px solid rgba(34,211,238,.3);font-size:.8rem;padding:3px 10px"
+              x-text="review.kp"></span>
+            <span class="text-sm text-slate-400 font-mono">
+              <span class="text-white font-bold" x-text="review.idx+1"></span>
+              <span class="text-slate-600"> / </span>
+              <span x-text="review.entries.length"></span> 题
+            </span>
+          </div>
+        </div>
+        <button @click="review.active=false" class="btn-ghost text-xs">× 退出复习</button>
+      </div>
+
+      <!-- progress bar -->
+      <div class="w-full max-w-2xl mb-6">
+        <div class="h-1.5 rounded-full overflow-hidden" style="background:#0a1525">
+          <div class="h-full rounded-full transition-all duration-500"
+            style="background:linear-gradient(90deg,#22d3ee,#a855f7)"
+            :style="'width:'+((review.idx+1)/review.entries.length*100)+'%'"></div>
+        </div>
+      </div>
+
+      <!-- flashcard -->
+      <template x-if="review.entries[review.idx]">
+        <div class="review-card card w-full max-w-2xl p-8" :key="review.idx">
+
+          <!-- card header -->
+          <div class="flex items-center gap-2 mb-6">
+            <span class="badge" :class="'b-'+review.entries[review.idx].subject"
+              x-text="SUBJ_LABEL[review.entries[review.idx].subject]||review.entries[review.idx].subject"></span>
+            <span x-show="review.entries[review.idx].question_type && review.entries[review.idx].question_type!=='unknown'"
+              class="badge" style="background:#0a1525;color:#475569;border:1px solid #1e2d42"
+              x-text="QTYPE_LABEL[review.entries[review.idx].question_type]||''"></span>
+            <span x-show="review.entries[review.idx].mastered"
+              class="badge" style="background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.25)">✓ 已掌握</span>
+          </div>
+
+          <!-- question text -->
+          <p class="text-base text-slate-200 leading-relaxed mb-8"
+            x-text="review.entries[review.idx].question_text || '（题目内容未录入）'"></p>
+
+          <!-- reveal / answers -->
+          <div x-show="!review.showAnswer" class="text-center py-4">
+            <button @click="review.showAnswer=true"
+              class="px-10 py-3 rounded-xl text-sm font-semibold transition-all"
+              style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.35);color:#22d3ee"
+              onmouseover="this.style.background='rgba(34,211,238,.2)'"
+              onmouseout="this.style.background='rgba(34,211,238,.1)'">
+              👀 翻开答案
+            </button>
+            <p class="text-xs text-slate-600 mt-3">先自己想一想，再翻开</p>
+          </div>
+
+          <div x-show="review.showAnswer" x-transition class="space-y-3">
+            <!-- student's wrong answer -->
+            <div class="px-4 py-3 rounded-xl"
+              style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2)">
+              <div class="text-xs text-slate-500 mb-1">你当时的错误答案</div>
+              <div class="text-sm text-red-400 font-mono"
+                x-text="review.entries[review.idx].student_answer || '--'"></div>
+            </div>
+            <!-- correct answer -->
+            <div class="px-4 py-3 rounded-xl"
+              style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2)">
+              <div class="text-xs text-slate-500 mb-1">正确答案</div>
+              <div class="text-sm text-green-400 font-mono"
+                x-text="review.entries[review.idx].correct_answer || '--'"></div>
+            </div>
+            <!-- error type + brief comment -->
+            <div class="flex flex-wrap gap-3 text-xs">
+              <span x-show="review.entries[review.idx].error_type" style="color:#f59e0b">
+                错误类型：<span x-text="ERR_LABEL[review.entries[review.idx].error_type]||''"></span>
+              </span>
+            </div>
+            <div x-show="review.entries[review.idx].brief_comment"
+              class="px-3 py-2 rounded-lg text-xs"
+              style="background:#040a14;border-left:2px solid rgba(245,158,11,.35);color:#64748b"
+              x-text="review.entries[review.idx].brief_comment"></div>
+          </div>
+        </div>
+      </template>
+
+      <!-- action buttons（答案翻开后显示） -->
+      <div x-show="review.showAnswer" x-transition
+        class="flex items-center gap-3 mt-6 flex-wrap justify-center">
+        <button @click="reviewExplain(review.entries[review.idx])"
+          class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+          style="background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.25);color:#22d3ee"
+          onmouseover="this.style.background='rgba(34,211,238,.18)'"
+          onmouseout="this.style.background='rgba(34,211,238,.08)'">
+          💡 AI 详细解析
+        </button>
+        <button @click="reviewMastered(review.entries[review.idx])"
+          x-show="!review.entries[review.idx]?.mastered"
+          class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+          style="background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);color:#10b981"
+          onmouseover="this.style.background='rgba(16,185,129,.22)'"
+          onmouseout="this.style.background='rgba(16,185,129,.12)'">
+          ✓ 我会了，下一题
+        </button>
+        <button @click="reviewNext()"
+          class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+          style="border:1px solid #1e2d42;color:#64748b"
+          onmouseover="this.style.borderColor='#334155';this.style.color='#94a3b8'"
+          onmouseout="this.style.borderColor='#1e2d42';this.style.color='#64748b'">
+          跳过 →
+        </button>
+      </div>
+
+      <!-- 最后一题提示 -->
+      <div x-show="review.showAnswer && review.idx===review.entries.length-1"
+        class="mt-4 text-xs text-slate-600 text-center">
+        这是最后一题，操作完成后复习结束 🎯
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════ TOAST ═══════ -->
+  <div id="toast-root" style="position:fixed;bottom:24px;right:24px;z-index:1000;display:flex;flex-direction:column;gap:8px">
+  </div>
+
+  <script>
+  /* ══════════════════════════════════════════════════════════════
+     LOOKUP TABLES
+  ══════════════════════════════════════════════════════════════ */
+  const SUBJ_LABEL = { math:'数学', physics:'物理', chemistry:'化学', english:'英语', biology:'生物', history:'历史', chinese:'语文', politics:'政治', geography:'地理' }
+  const QTYPE_LABEL = { choice:'选择题', fill_blank:'填空题', calculation:'计算题', short_answer:'简答题', reading:'阅读理解', writing:'写作题', proof:'证明题', unknown:'未知' }
+  const ERR_LABEL = { calculation_error:'计算失误', concept_confusion:'概念混淆', reading_mistake:'审题错误', formula_wrong:'公式记错', sign_error:'符号错误', unit_error:'单位错误', incomplete:'步骤不全', logic_error:'逻辑错误', spelling_grammar:'拼写/语法', other:'其他' }
+  const DIFF_LABEL = { easy:'简单', medium:'中等', hard:'困难', very_hard:'极难' }
+
+  const HW_MSGS = [
+    'OCR 识别题目...',
+    '分析题型结构...',
+    'AI 逐题批改...',
+    '标注知识点...',
+    '分析难度等级...',
+    '生成试卷标签...',
+    '存档错题本...',
+  ]
+
+  const SUBJ_COLORS = { math:'#60a5fa', physics:'#c084fc', chemistry:'#34d399', english:'#fbbf24', biology:'#f472b6', history:'#fb923c', chinese:'#f87171', politics:'#818cf8', geography:'#2dd4bf' }
+
+  /* ══════════════════════════════════════════════════════════════
+     ALPINE APP
+  ══════════════════════════════════════════════════════════════ */
+  function app() {
+    return {
+      page: 'dashboard',
+      // 自动用当前域名+端口，手机访问时无需手动改地址
+      apiBase: window.location.origin,
+
+      navItems: [
+        { id:'dashboard', label:'主控台',  icon:'🏠', desc:'总览与快速操作',          badge:0 },
+        { id:'homework',  label:'作业批改', icon:'📸', desc:'拍照上传，AI 智能批改',    badge:0 },
+        { id:'wrongbook', label:'错题本',  icon:'📓', desc:'管理和复习错题',            badge:0 },
+        { id:'inquire',   label:'题目询问', icon:'🔍', desc:'任意题目，即刻解析',        badge:0 },
+        { id:'kb',        label:'知识库',  icon:'📚', desc:'教材上传·管理·RAG 增强',   badge:0 },
+        { id:'history',   label:'历史记录', icon:'📋', desc:'批改记录·答疑历史',          badge:0 },
+        { id:'profile',   label:'我的',    icon:'👤', desc:'学习档案·成绩趋势·偏好',    badge:0 },
+      ],
+
+      subjects: [
+        { v:'math',      label:'数学 📐',  short:'数学'  },
+        { v:'physics',   label:'物理 ⚡',  short:'物理'  },
+        { v:'chemistry', label:'化学 🧪',  short:'化学'  },
+        { v:'english',   label:'英语 🌍',  short:'英语'  },
+        { v:'biology',   label:'生物 🌿',  short:'生物'  },
+        { v:'history',   label:'历史 📜',  short:'历史'  },
+        { v:'chinese',   label:'语文 📖',  short:'语文'  },
+        { v:'politics',  label:'政治 🏛️',  short:'政治'  },
+        { v:'geography', label:'地理 🌏',  short:'地理'  },
+      ],
+
+      /* ─── dashboard ─── */
+      wbStats: null,
+      get dashStats() {
+        const total    = this.wbStats?.total    ?? 0
+        const mastered = this.wbStats?.mastered ?? 0
+        const pct      = total > 0 ? Math.round(mastered / total * 100) : null
+        const streak   = this.prof.streak?.current_streak ?? 0
+        return [
+          { label:'错题总数', icon:'❌', value: total   + ' 题', sub: total    ? '本周新增'  : null },
+          { label:'已掌握',   icon:'✅', value: mastered + ' 题', sub: mastered ? '继续加油'  : null },
+          { label:'待攻克',   icon:'🎯', value: (this.wbStats?.unmastered??0) + ' 题', sub: null },
+          { label:'连续打卡', icon:'🔥', value: streak + ' 天', sub: streak > 0 ? '坚持就是胜利' : null },
+        ]
+      },
+      get subjectBars() {
+        const dist = this.wbStats?.by_subject ?? {}
+        const max  = Math.max(...Object.values(dist), 1)
+        return Object.entries(SUBJ_LABEL).map(([name, label]) => ({
+          name, label,
+          count: dist[name] ?? 0,
+          pct:   Math.round((dist[name] ?? 0) / max * 100),
+          color: SUBJ_COLORS[name] ?? '#475569',
+        }))
+      },
+      // 各科正确率强弱分析（基于 performance summary）
+      get subjectStrengthBars() {
+        const avg = this.prof.summary?.subject_avg || {}
+        return Object.entries(SUBJ_LABEL)
+          .map(([s, label]) => {
+            if (avg[s] == null) return null
+            const pct   = Math.round(avg[s] * 100)
+            const level = pct >= 80 ? 'strong' : pct >= 65 ? 'ok' : 'weak'
+            return { s, label, pct, level, color: SUBJ_COLORS[s] || '#475569' }
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.pct - b.pct)   // 弱科在前，一眼看出问题
+      },
+      // 全局掌握率 %
+      get overallMasteryPct() {
+        const total    = this.wbStats?.total    ?? 0
+        const mastered = this.wbStats?.mastered ?? 0
+        return total > 0 ? Math.round(mastered / total * 100) : null
+      },
+      // 最薄弱的科目（正确率最低且有数据）
+      get weakestSubject() {
+        const avg = this.prof.summary?.subject_avg || {}
+        let minS = null, minV = 1
+        for (const [s, v] of Object.entries(avg)) {
+          if (v < minV) { minV = v; minS = s }
+        }
+        return minS ? { s: minS, pct: Math.round(minV * 100), label: SUBJ_LABEL[minS] || minS } : null
+      },
+      // 各科知识点薄弱 TOP 5（最新的在前）
+      get topWeakPoints() {
+        const out = []
+        const gaps = this.prof.gaps || {}
+        for (const [subj, pts] of Object.entries(gaps)) {
+          for (const pt of [...pts].reverse()) {
+            if (out.length >= 5) break
+            out.push({ subj, pt, color: SUBJ_COLORS[subj] || '#475569', label: SUBJ_LABEL[subj] || subj })
+          }
+          if (out.length >= 5) break
+        }
+        return out
+      },
+      // 数据驱动的今日行动建议（最多 3 条）
+      get dashRecommendations() {
+        const recs = []
+        const unmastered = this.wbStats?.unmastered ?? 0
+        if (unmastered > 0) recs.push({
+          icon:'📓', text:`错题本有 ${unmastered} 道未掌握，趁热复习效果最好`,
+          action:'去复习', target:'wrongbook',
+          color:'#a855f7', bg:'rgba(168,85,247,.07)', border:'rgba(168,85,247,.22)', hover:'rgba(168,85,247,.14)',
+        })
+        const ws = this.weakestSubject
+        if (ws && ws.pct < 70) recs.push({
+          icon:'⚡', text:`${ws.label}正确率仅 ${ws.pct}%，是当前最薄弱科目`,
+          action:'去攻克', target:'wrongbook',
+          color:'#f59e0b', bg:'rgba(245,158,11,.07)', border:'rgba(245,158,11,.22)', hover:'rgba(245,158,11,.14)',
+        })
+        if (this.prof.summary?.exam_anxiety_flag) recs.push({
+          icon:'📋', text:'近期考试比平时低 15% 以上，建议查看成绩趋势',
+          action:'查看趋势', target:'profile',
+          color:'#ef4444', bg:'rgba(239,68,68,.07)', border:'rgba(239,68,68,.22)', hover:'rgba(239,68,68,.14)',
+        })
+        const streak = this.prof.streak?.current_streak ?? 0
+        if (streak === 0 && (this.prof.records?.length ?? 0) > 0) recs.push({
+          icon:'🔥', text:'今天还没有学习记录，来一道题保持连续？',
+          action:'上传作业', target:'homework',
+          color:'#22d3ee', bg:'rgba(34,211,238,.07)', border:'rgba(34,211,238,.22)', hover:'rgba(34,211,238,.14)',
+        })
+        if (recs.length === 0) recs.push({
+          icon:'🚀',
+          text: (this.prof.records?.length ?? 0) === 0
+            ? '还没有学习记录，上传第一次作业，开始你的学习之旅！'
+            : '今天状态很好，继续加油！',
+          action: (this.prof.records?.length ?? 0) === 0 ? '立即开始' : '上传作业',
+          target:'homework',
+          color:'#22d3ee', bg:'rgba(34,211,238,.07)', border:'rgba(34,211,238,.22)', hover:'rgba(34,211,238,.14)',
+        })
+        return recs.slice(0, 3)
+      },
+
+      /* ─── history ─── */
+      hist: {
+        tab: 'homework',
+        hw:   { loading: false, loaded: false, list: [], detail: null },
+        chat: { loading: false, loaded: false, list: [], detail: null },
+      },
+
+      /* ─── session ID (for memory tracking) ─── */
+      sessionId: (() => {
+        let id = localStorage.getItem('studycore_session')
+        if (!id) { id = 'sess_' + Math.random().toString(36).slice(2,11); localStorage.setItem('studycore_session', id) }
+        return id
+      })(),
+
+      /* ─── profile ─── */
+      prof: {
+        loading: false,
+        streak: null,
+        summary: null,
+        gaps: {},
+        records: [],
+        pref: {
+          explanation_length: 'standard',
+          explanation_style:  'vivid',
+          nickname:           '',
+          grade:              '',
+          gender:             '',
+          mbti:               '',
+        },
+        prefSaved: false,
+        trendType: 'all',   // all | homework | exam
+        greeting:  '',      // 个性化问候语
+      },
+
+      /* ─── model presets ─── */
+      // kimi-coding 仅限编程 Agent（Kimi CLI/Claude Code 等），普通 API 调用会 403
+      models: [
+        { key: 'gemini', label: 'Gemini 2.5 Pro' },
+        { key: 'kimi',   label: 'Kimi-2.5'       },
+      ],
+      hwModel:  'gemini', // 作业批改默认（OCR 需要视觉模型）
+      wbModel:  'kimi',   // 错题解析默认
+      iqModel:  'kimi',   // 题目询问默认
+
+      /* ─── homework ─── */
+      hw: {
+        state: 'upload',   // upload | loading | done
+        step: 'subject',   // subject | upload  (within upload state)
+        subject: 'math',
+        recordType: 'homework',   // homework | exam
+        examName: '',
+        files: [],
+        previews: [],
+        dragging: false,
+        result: null,
+        msg: HW_MSGS[0],
+        _timer: null,
+        showSidebar:   false,
+        activeHistId:  null,
+        histList: [],
+        histLoading: false,
+      },
+
+      hwDrop(event) {
+        this.hw.dragging = false
+        const files = [...event.dataTransfer.files].filter(f => f.type.startsWith('image/'))
+        files.forEach(f => this.hwAddFile(f))
+      },
+      hwSelect(event) {
+        ;[...event.target.files].forEach(f => this.hwAddFile(f))
+        event.target.value = ''
+      },
+      hwAddFile(file) {
+        this.hw.files.push(file)
+        const reader = new FileReader()
+        reader.onload = e => this.hw.previews.push(e.target.result)
+        reader.readAsDataURL(file)
+      },
+      hwRemoveFile(i) {
+        this.hw.files.splice(i, 1)
+        this.hw.previews.splice(i, 1)
+      },
+      hwScoreLabel() {
+        const r = this.hw.result
+        if (!r) return '--'
+        if (r.earned_score !== null && r.earned_score !== undefined && r.total_score) {
+          return r.earned_score + ' / ' + r.total_score
+        }
+        if (r.total_questions > 0) {
+          return Math.round(r.correct_count / r.total_questions * 100) + '%'
+        }
+        return '--'
+      },
+      async hwGrade() {
+        if (!this.hw.files.length) return
+        this.hw.state = 'loading'
+        let mi = 0
+        this.hw.msg = HW_MSGS[0]
+        const timer = setInterval(() => {
+          mi = Math.min(mi + 1, HW_MSGS.length - 1)
+          this.hw.msg = HW_MSGS[mi]
+        }, 1600)
+        try {
+          const fd = new FormData()
+          this.hw.files.forEach(f => fd.append('files', f))
+          fd.append('subject', this.hw.subject)
+          fd.append('record_type', this.hw.recordType)
+          if (this.hw.recordType === 'exam' && this.hw.examName.trim()) {
+            fd.append('exam_name', this.hw.examName.trim())
+          }
+          if (this.hwModel) fd.append('model_key', this.hwModel)
+          const res = await fetch(`${this.apiBase}/api/v1/homework/grade`, { method:'POST', body:fd })
+          clearInterval(timer)
+          if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`) }
+          const result = await res.json()
+          // initialize appeal state on each question
+          if (result.questions) {
+            result.questions = result.questions.map(q => ({
+              ...q,
+              _appealLoading: false,
+              _appealVerdict: null,
+              _appealDone: false,
+            }))
+          }
+          this.hw.result = result
+          this.hw.state  = 'done'
+          this.hw.activeHistId = null   // 新批改，侧边栏无选中项
+          this.loadWBStats()
+          this.hwLoadHist()   // 批改完成后刷新历史列表
+          this.toast('批改完成！', 'success')
+          // 持久化到 localStorage，刷新后可恢复
+          try { localStorage.setItem('hw_last_result', JSON.stringify(result)) } catch(_) {}
+        } catch(e) {
+          clearInterval(timer)
+          this.hw.state = 'upload'
+          this.hw.step = 'upload'
+          this.toast('批改失败：' + e.message, 'error')
+        }
+      },
+
+      async hwRegrade(q, i) {
+        const questions = this.hw.result?.questions
+        if (!questions) return
+        q._appealLoading = true
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/homework/regrade-question`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              question_text: q.question_text,
+              student_answer: q.student_answer || '',
+              subject: this.hw.result.subject,
+              question_type: q.question_type || 'unknown',
+              correct_answer: q.correct_answer || '',
+              model_key: this.hwModel || null,
+            }),
+          })
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const verdict = await res.json()
+          q._appealVerdict = verdict
+          if (verdict.overturned) {
+            // AI overturned: remove from wrong book + adjust stats
+            await fetch(`${this.apiBase}/api/v1/wrong-book/override-correct`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                question_text: q.question_text,
+                subject: this.hw.result.subject,
+                student_answer: q.student_answer || '',
+              }),
+            })
+            q._appealDone = true
+            this.loadWBStats()
+            this.toast('AI复审：确认正确，已从错题本移除', 'success')
+          } else {
+            this.toast('AI复审：维持原判', 'info')
+          }
+        } catch(e) {
+          this.toast('重新评分失败：' + e.message, 'error')
+        } finally {
+          q._appealLoading = false
+        }
+      },
+
+      async hwMarkCorrect(q, i) {
+        if (!this.hw.result?.questions) return
+        q._appealLoading = true
+        try {
+          await fetch(`${this.apiBase}/api/v1/wrong-book/override-correct`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              question_text: q.question_text,
+              subject: this.hw.result.subject,
+              student_answer: q.student_answer || '',
+            }),
+          })
+          q._appealDone = true
+          this.loadWBStats()
+          this.toast('已标记为正确，错题本已更新 ✓', 'success')
+        } catch(e) {
+          this.toast('操作失败：' + e.message, 'error')
+        } finally {
+          q._appealLoading = false
+        }
+      },
+
+      /* ─── wrong book ─── */
+      wb: {
+        loading: false,
+        entries: [],
+        filtered: [],
+        filter: 'all',
+        kpFilter: '',   // 知识点筛选（从"我的"页点击薄弱知识点跳转时设置）
+      },
+      wbExplainCache: new Map(),   // entry_id → explanation，跨 wbLoad() 持久化
+
+      /* ─── review / flashcard mode ─── */
+      review: {
+        active:     false,
+        kp:         '',       // 当前复习的知识点名称
+        entries:    [],       // 当前复习的错题列表
+        idx:        0,        // 当前题目索引
+        showAnswer: false,    // 是否已翻开答案
+      },
+
+      async wbLoad() {
+        this.wb.loading = true
+        try {
+          const [eRes, sRes] = await Promise.all([
+            fetch(`${this.apiBase}/api/v1/wrong-book`),
+            fetch(`${this.apiBase}/api/v1/wrong-book/stats`),
+          ])
+          if (eRes.ok) {
+            const entries = await eRes.json()
+            // 去重：按 entry_id 保留第一条，避免 x-for key 冲突导致渲染错误
+            const seen = new Set()
+            const deduped = entries.filter(e => {
+              if (seen.has(e.entry_id)) return false
+              seen.add(e.entry_id)
+              return true
+            })
+            this.wb.entries = deduped.map(e => ({ ...e, _explaining: false, _explanation: this.wbExplainCache.get(e.entry_id) || null }))
+          }
+          if (sRes.ok) { this.wbStats = await sRes.json(); this.syncNavBadge() }
+        } catch(e) { this.toast('加载失败：' + e.message, 'error') }
+        finally { this.wb.loading = false; this.wbFilter() }
+      },
+
+      async loadWBStats() {
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/wrong-book/stats`)
+          if (res.ok) { this.wbStats = await res.json(); this.syncNavBadge() }
+        } catch(_) {}
+      },
+
+      syncNavBadge() {
+        const n = this.navItems.find(n => n.id === 'wrongbook')
+        if (n) n.badge = this.wbStats?.unmastered ?? 0
+      },
+
+      wbFilter() {
+        const f = this.wb.filter
+        let filtered
+        // 始终生成新数组（不与 wb.entries 同引用），确保 Alpine.js 响应式检测到变化
+        if (f === 'all')             filtered = [...this.wb.entries]
+        else if (f === 'unmastered') filtered = this.wb.entries.filter(e => !e.mastered)
+        else if (f === 'mastered')   filtered = this.wb.entries.filter(e => e.mastered)
+        else                         filtered = this.wb.entries.filter(e => e.subject === f)
+        // 叠加知识点筛选
+        if (this.wb.kpFilter) {
+          filtered = filtered.filter(e => (e.knowledge_points || []).includes(this.wb.kpFilter))
+        }
+        this.wb.filtered = filtered
+        // 筛选切换后滚动回顶部，避免用户停在中部看不到变化
+        const scroller = document.getElementById('main-scroll')
+        if (scroller) scroller.scrollTop = 0
+      },
+
+      // ── 知识点 → 错题本联动 ────────────────────────────────────────────────────
+
+      // 返回某科目下，某知识点在错题本中的匹配题数
+      wbKpCount(kp, subject) {
+        return this.wb.entries.filter(
+          e => e.subject === subject && (e.knowledge_points || []).includes(kp)
+        ).length
+      },
+
+      // 从"我的"页点击薄弱知识点：
+      //   有相关错题 → 跳转到错题本筛选
+      //   无相关错题 → 跳转到题目询问，预填"我想练习 [kp] 相关题目"
+      async goToWrongBookByKP(kp, subject) {
+        const count = this.wbKpCount(kp, subject)
+        if (count === 0) {
+          // 没有错题记录 → 引导去练习新题
+          this.goTo('inquire')
+          await this.$nextTick()
+          const subjectCN = SUBJ_LABEL[subject] || subject
+          this.iq.input   = `我想练习${subjectCN}「${kp}」相关的题目，请出一道适合我水平的练习题并讲解。`
+          this.iq.subject = subject
+          this.toast(`已跳转到题目询问，将为你练习「${kp}」`, 'info')
+          return
+        }
+        this.wb.kpFilter = kp
+        this.wb.filter   = subject
+        await this.goTo('wrongbook')
+        this.wbFilter()
+      },
+
+      // 切换重点科目（多选）
+      toggleFocusSubject(subj) {
+        const arr = this.prof.pref.focus_subjects || []
+        const idx = arr.indexOf(subj)
+        if (idx >= 0) arr.splice(idx, 1)
+        else arr.push(subj)
+        this.prof.pref.focus_subjects = [...arr]
+        this.savePref()
+      },
+
+      // 清除知识点筛选，恢复全部视图
+      wbClearKpFilter() {
+        this.wb.kpFilter = ''
+        this.wb.filter   = 'all'
+        this.wbFilter()
+      },
+
+      // ── 复习模式（闪卡）─────────────────────────────────────────────────────
+
+      reviewStart() {
+        if (!this.wb.filtered.length) { this.toast('暂无可复习的错题', 'info'); return }
+        // 优先复习未掌握的；若已全部掌握则全部复习（温习模式）
+        let pool = this.wb.filtered.filter(e => !e.mastered)
+        if (!pool.length) {
+          pool = [...this.wb.filtered]
+          this.toast('该知识点所有错题均已掌握，进入温习模式 ✨', 'info')
+        }
+        this.review.kp         = this.wb.kpFilter
+        this.review.entries    = pool
+        this.review.idx        = 0
+        this.review.showAnswer = false
+        this.review.active     = true
+      },
+
+      reviewNext() {
+        if (this.review.idx < this.review.entries.length - 1) {
+          this.review.idx++
+          this.review.showAnswer = false
+        } else {
+          this.review.active = false
+          this.toast(`🎉 本轮复习完成！共过了 ${this.review.entries.length} 道题`, 'success')
+        }
+      },
+
+      // 在复习模式中标记掌握并跳下一题
+      async reviewMastered(entry) {
+        await this.wbMastered(entry)
+        this.reviewNext()
+      },
+
+      // 在复习模式中跳到 inquire 解析（退出复习模式）
+      reviewExplain(entry) {
+        this.review.active = false
+        this.wbExplain(entry)
+      },
+
+      async wbExplain(entry) {
+        if (entry._explaining) return
+        // 折叠：若已有解析则收起
+        if (entry._explanation) { entry._explanation = null; this.wbExplainCache.delete(entry.entry_id); return }
+        entry._explaining = true
+        try {
+          const params = this.wbModel ? `?model_key=${encodeURIComponent(this.wbModel)}` : ''
+          const res = await fetch(
+            `${this.apiBase}/api/v1/wrong-book/${entry.entry_id}/explain${params}`,
+            { method: 'POST' }
+          )
+          if (!res.ok) { const err = await res.json(); throw new Error(err.detail || `HTTP ${res.status}`) }
+          const explanation = await res.json()
+          // 写到当前 entry 对象
+          entry._explanation = explanation
+          // 缓存到 Map，跨 wbLoad() 持久化
+          this.wbExplainCache.set(entry.entry_id, explanation)
+          // 如果 wbLoad() 期间替换了 entries 列表，同步更新新对象
+          const live = this.wb.entries.find(e => e.entry_id === entry.entry_id)
+          if (live && live !== entry) live._explanation = explanation
+        } catch(e) {
+          this.toast('解析失败：' + e.message, 'error')
+        } finally {
+          entry._explaining = false
+          const live = this.wb.entries.find(e => e.entry_id === entry.entry_id)
+          if (live && live !== entry) live._explaining = false
+        }
+      },
+
+      async wbMastered(entry) {
+        const idx = this.wb.entries.findIndex(e => e.entry_id === entry.entry_id)
+        if (idx === -1) return
+        const newVal = !entry.mastered
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/wrong-book/${entry.entry_id}/mastered`, {
+            method:'PUT',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ mastered: newVal }),
+          })
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          this.wb.entries[idx].mastered = newVal
+          this.toast(newVal ? '已标记为掌握 🎉' : '已取消掌握', 'success')
+          this.wbFilter()
+          this.loadWBStats()
+        } catch(e) { this.toast('操作失败：' + e.message, 'error') }
+      },
+
+      async wbDelete(entry_id) {
+        if (!confirm('确定删除这道错题？此操作不可撤销。')) return
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/wrong-book/${entry_id}`, { method:'DELETE' })
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          this.wb.entries = this.wb.entries.filter(e => e.entry_id !== entry_id)
+          this.wbFilter()
+          this.loadWBStats()
+          this.toast('已删除', 'success')
+        } catch(e) { this.toast('删除失败：' + e.message, 'error') }
+      },
+
+      /* ─── inquire (chat) ─── */
+      iq: {
+        subject:         'math',
+        messages:        [],   // {role:'user'|'ai', content, fileName, thinking, ragUsed, snippets}
+        input:           '',
+        pendingFile:     null,
+        pendingFileName: '',
+        sending:         false,
+        ocrRunning:      false,
+        sessions:        [],   // session list from API
+        sessionsLoading: false,
+        showSidebar:     false, // mobile drawer
+        activeSessionId: null,  // current session_id (null = new unsaved session)
+      },
+
+      /* ─── textbook / knowledge base ─── */
+      tb: {
+        status: [], loading: false,
+        uploadSubject: 'english', uploadFile: null, uploading: false, uploadMsg: '',
+        supportedSubjects: [
+          { v:'english', label:'英语' }, { v:'biology', label:'生物' },
+          { v:'history', label:'历史' }, { v:'chinese', label:'语文' },
+        ],
+        renaming: null,      // subject being renamed
+        renameInput: '',     // rename input value
+        deleting: null,      // subject pending delete confirm
+      },
+
+      /* ─── inquire chat ─── */
+      iqFileSelect(event) {
+        const f = event.target.files[0]
+        if (!f) return
+        this.iq.pendingFile = f
+        this.iq.pendingFileName = f.name
+        event.target.value = ''
+        // Auto-focus input after picking file
+        this.$nextTick(() => document.getElementById('iq-input')?.focus())
+      },
+
+      iqScrollToBottom() {
+        const el = document.getElementById('iq-messages')
+        if (el) el.scrollTop = el.scrollHeight
+      },
+
+      async iqSend() {
+        const text = this.iq.input.trim()
+        const file = this.iq.pendingFile
+        const fileName = this.iq.pendingFileName
+        if ((!text && !file) || this.iq.sending) return
+
+        this.iq.sending = true
+        this.iq.input = ''
+        this.iq.pendingFile = null
+        this.iq.pendingFileName = ''
+        // Reset textarea height
+        this.$nextTick(() => {
+          const ta = document.getElementById('iq-input')
+          if (ta) { ta.style.height = 'auto' }
+        })
+
+        // Auto-assign session ID on first message of a new session
+        const isFirstMsg = this.iq.messages.filter(m => m.role === 'user').length === 0
+        if (!this.iq.activeSessionId) {
+          this.iq.activeSessionId = 'sess_' + Math.random().toString(36).slice(2, 11)
+        }
+        const sessionId = this.iq.activeSessionId
+
+        // Track in session list so sidebar updates immediately
+        if (isFirstMsg) {
+          const title = (text || fileName || '图片会话').slice(0, 25)
+          const existing = this.iq.sessions.find(s => s.session_id === sessionId)
+          if (!existing) {
+            this.iq.sessions.unshift({
+              session_id:   sessionId,
+              _title:       title,
+              last_updated: new Date().toISOString(),
+              turn_count:   0,
+              preview:      text.slice(0, 80),
+            })
+          }
+        }
+
+        // Add user message bubble
+        this.iq.messages.push({ role: 'user', content: text, fileName: fileName || '' })
+
+        // Add AI "thinking" bubble
+        const aiIdx = this.iq.messages.length
+        this.iq.messages.push({ role: 'ai', content: '', thinking: true, ragUsed: false, snippets: [] })
+        this.$nextTick(() => this.iqScrollToBottom())
+
+        try {
+          let data = null
+
+          if (file) {
+            // ── 图片走 vision 端点：直接传图片给 LLM，保留视觉信息 ──────────
+            const fd = new FormData()
+            fd.append('image', file, fileName)
+            if (text) fd.append('question_text', text)
+            fd.append('subject', this.iq.subject)
+            fd.append('session_id', sessionId)
+            if (this.iqModel) fd.append('model_key', this.iqModel)
+
+            const res = await fetch(`${this.apiBase}/api/v1/explain/with-image`, {
+              method: 'POST',
+              body: fd,
+            })
+            if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`) }
+            data = await res.json()
+          } else {
+            // ── 纯文字走原有 explain 端点 ─────────────────────────────────
+            const res = await fetch(`${this.apiBase}/api/v1/explain`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                question_text: text,
+                subject:       this.iq.subject,
+                knowledge_points: [],
+                session_id:    sessionId,
+                model_key:     this.iqModel || null,
+              }),
+            })
+            if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`) }
+            data = await res.json()
+          }
+
+          this.iq.messages[aiIdx] = {
+            role:     'ai',
+            content:  data.explanation || '',
+            thinking: false,
+            ragUsed:  !!data.used_rag,
+            snippets: data.textbook_snippets || [],
+          }
+
+          // Update turn count in sidebar list
+          const sess = this.iq.sessions.find(s => s.session_id === sessionId)
+          if (sess) {
+            sess.turn_count = (sess.turn_count || 0) + 1
+            sess.last_updated = new Date().toISOString()
+          }
+        } catch(e) {
+          this.iq.messages[aiIdx] = {
+            role: 'ai', content: `❌ 出错了：${e.message}`, thinking: false, ragUsed: false, snippets: [],
+          }
+        } finally {
+          this.iq.sending = false
+          this.$nextTick(() => this.iqScrollToBottom())
+        }
+      },
+
+      /* ─── textbook management ─── */
+      async tbLoadStatus() {
+        this.tb.loading = true
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/textbook/status`)
+          if (res.ok) this.tb.status = await res.json()
+        } catch(e) { this.toast('加载教材状态失败', 'error') }
+        finally { this.tb.loading = false }
+      },
+      tbFileSelect(event) {
+        const f = event.target.files[0]
+        if (f) { this.tb.uploadFile = f; this.tb.uploadMsg = '' }
+        event.target.value = ''
+      },
+      async tbUpload() {
+        if (!this.tb.uploadFile) return
+        this.tb.uploading = true
+        this.tb.uploadMsg = ''
+        try {
+          const fd = new FormData()
+          fd.append('subject', this.tb.uploadSubject)
+          fd.append('file', this.tb.uploadFile)
+          const res = await fetch(`${this.apiBase}/api/v1/textbook/upload`, { method:'POST', body:fd })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`)
+          this.tb.uploadMsg = data.message
+          this.tb.uploadFile = null
+          this.toast('上传成功，后台向量化中…', 'success')
+          setTimeout(() => this.tbLoadStatus(), 3000)
+        } catch(e) {
+          this.tb.uploadMsg = '上传失败：' + e.message
+          this.toast('上传失败：' + e.message, 'error')
+        } finally { this.tb.uploading = false }
+      },
+      async tbReindex(subject) {
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/textbook/reindex/${subject}`, { method:'POST' })
+          if (!res.ok) { const e = await res.json(); throw new Error(e.detail) }
+          this.toast('重新索引已启动', 'success')
+          setTimeout(() => this.tbLoadStatus(), 3000)
+        } catch(e) { this.toast('失败：' + e.message, 'error') }
+      },
+      tbOpenFile(subject) {
+        window.open(`${this.apiBase}/api/v1/textbook/file/${subject}`, '_blank')
+      },
+      tbStartRename(subject, currentName) {
+        this.tb.renaming = subject
+        this.tb.renameInput = currentName
+        this.$nextTick(() => {
+          const el = document.getElementById('rename-input')
+          if (el) el.focus()
+        })
+      },
+      async tbConfirmRename() {
+        if (!this.tb.renaming || !this.tb.renameInput.trim()) return
+        try {
+          const fd = new FormData()
+          fd.append('name', this.tb.renameInput.trim())
+          const res = await fetch(`${this.apiBase}/api/v1/textbook/${this.tb.renaming}/name`, { method:'PATCH', body:fd })
+          if (!res.ok) { const e = await res.json(); throw new Error(e.detail) }
+          this.toast('重命名成功', 'success')
+          this.tb.renaming = null
+          await this.tbLoadStatus()
+        } catch(e) { this.toast('重命名失败：' + e.message, 'error') }
+      },
+      tbCancelRename() {
+        this.tb.renaming = null
+        this.tb.renameInput = ''
+      },
+      tbAskDelete(subject) {
+        this.tb.deleting = subject
+      },
+      async tbConfirmDelete() {
+        if (!this.tb.deleting) return
+        const subject = this.tb.deleting
+        this.tb.deleting = null
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/textbook/${subject}`, { method:'DELETE' })
+          if (!res.ok) { const e = await res.json(); throw new Error(e.detail) }
+          this.toast('已删除', 'success')
+          await this.tbLoadStatus()
+        } catch(e) { this.toast('删除失败：' + e.message, 'error') }
+      },
+
+      /* ─── profile ─── */
+      async loadProfile() {
+        this.prof.loading = true
+        try {
+          const [memRes, sumRes, recRes, greetRes] = await Promise.all([
+            fetch(`${this.apiBase}/api/v1/profile`),
+            fetch(`${this.apiBase}/api/v1/profile/performance/summary?limit=20`),
+            fetch(`${this.apiBase}/api/v1/profile/performance?limit=20`),
+            fetch(`${this.apiBase}/api/v1/profile/greeting`),
+          ])
+          if (memRes.ok) {
+            const mem = await memRes.json()
+            this.prof.streak = mem.study_streak
+            this.prof.gaps   = mem.knowledge_gaps || {}
+            this.prof.pref   = { ...this.prof.pref, ...mem.preferences }
+          }
+          if (sumRes.ok) {
+            this.prof.summary = await sumRes.json()
+          }
+          if (recRes.ok) {
+            this.prof.records = await recRes.json()
+          }
+          if (greetRes.ok) {
+            const g = await greetRes.json()
+            this.prof.greeting = g.greeting || ''
+          }
+        } catch(e) { this.toast('加载档案失败：' + e.message, 'error') }
+        finally { this.prof.loading = false }
+      },
+      async savePref() {
+        this.prof.prefSaved = false
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/profile/preferences`, {
+            method:'PATCH',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify(this.prof.pref),
+          })
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          this.prof.prefSaved = true
+          setTimeout(() => this.prof.prefSaved = false, 3000)
+          this.toast('偏好已保存', 'success')
+        } catch(e) { this.toast('保存失败：' + e.message, 'error') }
+      },
+
+      /* ─── profile chart helpers ─── */
+      profTrendPoints() {
+        const trend = this.prof.summary?.trend || []
+        let filtered = trend
+        if (this.prof.trendType !== 'all') filtered = trend.filter(r => r.type === this.prof.trendType)
+        if (filtered.length === 0) return []
+        const W = 600, H = 120, pad = 30
+        const n = filtered.length
+        return filtered.map((r, i) => ({
+          x: n === 1 ? W / 2 : pad + (i / (n - 1)) * (W - 2 * pad),
+          y: H - pad - r.accuracy * (H - 2 * pad),
+          type: r.type,
+          accuracy: r.accuracy,
+          date: r.date,
+        }))
+      },
+      profLinePoints() {
+        return this.profTrendPoints().map(p => `${p.x},${p.y}`).join(' ')
+      },
+      profAreaPath() {
+        const pts = this.profTrendPoints()
+        if (!pts.length) return ''
+        const H = 120, pad = 30
+        const first = pts[0], last = pts[pts.length - 1]
+        const lineStr = pts.map((p, i) => (i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`)).join(' ')
+        return `${lineStr} L${last.x},${H - pad} L${first.x},${H - pad} Z`
+      },
+
+      /* ─── helpers ─── */
+      diffStyle(d) {
+        const m = { easy:'background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.25)', medium:'background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.25)', hard:'background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)', very_hard:'background:rgba(168,85,247,.1);color:#c084fc;border:1px solid rgba(168,85,247,.25)' }
+        return m[d] || 'background:#0a1525;color:#475569;border:1px solid #1e2d42'
+      },
+      md(text) {
+        if (!text) return ''
+        try { return marked.parse(text) } catch(_) { return text.replace(/\n/g,'<br>') }
+      },
+
+      /* ─── navigation ─── */
+      goTo(id) {
+        this.page = id
+        if (id === 'wrongbook') this.wbLoad()
+        if (id === 'profile')   { this.loadProfile() }
+        if (id === 'kb')        { this.tbLoadStatus() }
+        if (id === 'history')   { this.histLoadHW(); this.histLoadChat() }
+        if (id === 'inquire')   { this.iqLoadSessions() }
+        if (id === 'homework') { this.hwLoadHist() }
+      },
+
+      /* ─── toast ─── */
+      toast(message, type='info') {
+        const root = document.getElementById('toast-root')
+        const el = document.createElement('div')
+        const colors = {
+          success:'background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:#34d399',
+          error:  'background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#f87171',
+          info:   'background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.3);color:#22d3ee',
+        }
+        el.setAttribute('style', `${colors[type]||colors.info};padding:10px 18px;border-radius:10px;font-size:.8rem;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:opacity .3s;`)
+        el.textContent = message
+        root.appendChild(el)
+        setTimeout(() => { el.style.opacity='0'; setTimeout(() => el.remove(), 300) }, 3000)
+      },
+
+      /* ─── history ─── */
+      async histLoadHW() {
+        this.hist.hw.loading = true
+        this.hist.hw.detail = null
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/history/homework?limit=50`)
+          if (res.ok) this.hist.hw.list = await res.json()
+        } catch(_) {}
+        this.hist.hw.loading = false
+        this.hist.hw.loaded = true
+      },
+      async histLoadHWDetail(id) {
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/history/homework/${id}`)
+          if (res.ok) this.hist.hw.detail = await res.json()
+        } catch(_) { this.toast('加载详情失败', 'error') }
+      },
+      async histLoadChat() {
+        this.hist.chat.loading = true
+        this.hist.chat.detail = null
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/history/chat?limit=50`)
+          if (res.ok) this.hist.chat.list = await res.json()
+        } catch(_) {}
+        this.hist.chat.loading = false
+        this.hist.chat.loaded = true
+      },
+      async histLoadChatDetail(sessionId) {
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/history/chat/${sessionId}`)
+          if (res.ok) this.hist.chat.detail = await res.json()
+        } catch(_) { this.toast('加载详情失败', 'error') }
+      },
+
+      /* ─── session management (inquire) ─── */
+      iqNewSession() {
+        this.iq.messages = []
+        this.iq.activeSessionId = null
+        this.iq.input = ''
+        this.iq.pendingFile = null
+        this.iq.pendingFileName = ''
+        this.iq.showSidebar = false
+        this.$nextTick(() => document.getElementById('iq-input')?.focus())
+      },
+
+      async iqLoadSessions() {
+        this.iq.sessionsLoading = true
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/history/chat?limit=50`)
+          if (res.ok) this.iq.sessions = await res.json()
+        } catch(_) {}
+        this.iq.sessionsLoading = false
+      },
+
+      async iqResumeSession(sess) {
+        // already active — do nothing
+        if (sess.session_id === this.iq.activeSessionId) {
+          this.iq.showSidebar = false
+          return
+        }
+        this.iq.messages = []
+        this.iq.activeSessionId = sess.session_id
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/history/chat/${sess.session_id}`)
+          if (res.ok) {
+            const data = await res.json()
+            // Reconstruct messages array from stored records
+            const msgs = []
+            for (const m of (data.messages || [])) {
+              msgs.push({ role: m.role === 'assistant' ? 'ai' : m.role, content: m.content || '', thinking: false, ragUsed: false, snippets: [] })
+            }
+            // Fallback: use turn_records if messages is empty
+            if (msgs.length === 0) {
+              for (const t of (data.turn_records || [])) {
+                msgs.push({ role: 'user', content: t.user_text || '', thinking: false })
+                msgs.push({ role: 'ai',  content: t.assistant_text || '', thinking: false, ragUsed: false, snippets: [] })
+              }
+            }
+            this.iq.messages = msgs
+            if (data.subject) this.iq.subject = data.subject
+          }
+        } catch(_) { this.toast('加载会话失败', 'error') }
+        this.$nextTick(() => this.iqScrollToBottom())
+      },
+
+      iqSessionTitle(sess) {
+        // prefer locally-tracked title, then preview (last user msg), then fallback
+        return sess._title || sess.preview || (sess.subject_cn ? sess.subject_cn + '会话' : '新会话')
+      },
+
+      /* ─── homework history ─── */
+      async hwLoadHist() {
+        this.hw.histLoading = true
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/history/homework?limit=50`)
+          if (res.ok) this.hw.histList = await res.json()
+        } catch(_) {}
+        this.hw.histLoading = false
+      },
+
+      async hwLoadHistDetail(rec) {
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/history/homework/${rec.id}`)
+          if (res.ok) rec._detail = await res.json()
+        } catch(_) { this.toast('加载详情失败', 'error') }
+      },
+
+      async hwResumeHist(rec) {
+        this.hw.activeHistId = rec.id
+        if (!rec._detail) await this.hwLoadHistDetail(rec)
+        if (!rec._detail) return
+        // Reconstruct a result object from history detail to display in the done state
+        const detail = rec._detail
+        this.hw.result = {
+          ...detail,
+          questions: (detail.questions || []).map(q => ({
+            ...q, _appealLoading: false, _appealVerdict: null, _appealDone: false,
+          })),
+        }
+        this.hw.state = 'done'
+      },
+
+      /* ─── service worker registration ─── */
+      registerSW() {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('/ui/sw.js')
+            .then(r => console.log('[SW] registered', r.scope))
+            .catch(e => console.warn('[SW] registration failed', e))
+        }
+      },
+
+      /* ─── init ─── */
+      async init() {
+        // 注册 Service Worker（PWA 离线支持）
+        this.registerSW()
+
+        // 恢复上次作业批改结果（页面刷新后仍可见）
+        try {
+          const saved = localStorage.getItem('hw_last_result')
+          if (saved) {
+            const result = JSON.parse(saved)
+            if (result && result.questions) {
+              result.questions = result.questions.map(q => ({
+                ...q, _appealLoading: false, _appealVerdict: null, _appealDone: false,
+              }))
+              this.hw.result = result
+              this.hw.state  = 'done'
+            }
+          }
+        } catch(_) {}
+
+        // Load data in parallel for faster startup
+        await Promise.allSettled([
+          this.loadWBStats(),
+          this.loadProfile(),
+        ])
+        try {
+          const res = await fetch(`${this.apiBase}/api/v1/wrong-book`)
+          if (res.ok) {
+            const entries = await res.json()
+            const seen = new Set()
+            const deduped = entries.filter(e => { if (seen.has(e.entry_id)) return false; seen.add(e.entry_id); return true })
+            this.wb.entries = deduped.map(e => ({ ...e, _explaining:false, _explanation: this.wbExplainCache.get(e.entry_id) || null }))
+            this.wbFilter()
+          }
+        } catch(_) {}
+      },
+    }
+  }
+  </script>
+</body>
+</html>

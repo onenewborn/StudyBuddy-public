@@ -1,0 +1,6 @@
+{
+  "num_chunks": 414,
+  "num_documents": 1,
+  "embedding_dim": 1024,
+  "use_faiss": false
+}

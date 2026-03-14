@@ -1,0 +1,29 @@
+# ============================================================
+# StudyBuddy Python Dependencies
+# ============================================================
+# Python >= 3.10 required
+# Install: pip install -r requirements.txt
+
+# ── Web Framework ────────────────────────────────────────────
+fastapi>=0.129.0
+uvicorn[standard]>=0.40.0
+python-multipart>=0.0.9        # 文件上传（作业图片）
+
+# ── Data Validation ──────────────────────────────────────────
+pydantic>=2.11.0
+
+# ── LLM Providers ────────────────────────────────────────────
+openai>=2.0.0                  # OpenAI / Gemini / Kimi 等 OpenAI 兼容接口
+anthropic>=0.79.0              # Anthropic Claude（可选）
+
+# ── HTTP Client ───────────────────────────────────────────────
+httpx>=0.28.0                  # EverMemOS 客户端 & 异步 HTTP 调用
+aiohttp>=3.9.0                 # 部分搜索 Provider
+requests>=2.32.0               # 同步 HTTP（搜索 Provider 回退）
+
+# ── Utilities ─────────────────────────────────────────────────
+python-dotenv>=1.0.0           # 读取 .env 文件
+pyyaml>=6.0.0                  # 读取 config/*.yaml
+tenacity>=8.0.0                # LLM 调用自动重试
+jinja2>=3.1.0                  # Prompt 模板渲染
+numpy>=1.24.0,<3.0.0           # 向量检索（RAG 可选功能）

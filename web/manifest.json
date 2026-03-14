@@ -1,0 +1,25 @@
+{
+  "name": "StudyCore · 学习中枢",
+  "short_name": "StudyCore",
+  "description": "初中二年级智能学习助手 — 作业批改 / 错题本 / 知识库",
+  "start_url": "/ui/",
+  "scope": "/ui/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#050b17",
+  "theme_color": "#050b17",
+  "icons": [
+    {
+      "src": "/ui/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/ui/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

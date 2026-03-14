@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "StudyBuddy Backend",
+      "runtimeExecutable": "/Users/mona/DeepTutor/venv/bin/python",
+      "runtimeArgs": ["src/api/run_server.py"],
+      "port": 8001
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a1f3a"/>
+      <stop offset="100%" stop-color="#050b17"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="38" fill="url(#bg)"/>
+  <rect width="192" height="192" rx="38" fill="url(#glow)"/>
+  <rect x="1.5" y="1.5" width="189" height="189" rx="36.5" fill="none"
+        stroke="rgba(34,211,238,0.25)" stroke-width="3"/>
+  <!-- ⚡ bolt -->
+  <text x="96" y="118" font-size="88" text-anchor="middle"
+        font-family="system-ui, -apple-system, sans-serif">⚡</text>
+  <!-- label -->
+  <text x="96" y="158" font-size="13" text-anchor="middle"
+        fill="rgba(34,211,238,0.75)"
+        font-family="system-ui, -apple-system, sans-serif"
+        font-weight="700" letter-spacing="1.5">STUDY CORE</text>
+</svg>

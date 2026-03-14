@@ -1,0 +1,61 @@
+# ============================================================
+# StudyBuddy 主配置文件
+# ============================================================
+
+system:
+  language: zh
+  app_name: StudyBuddy
+
+paths:
+  data_dir: ./data
+  knowledge_bases_dir: ./data/knowledge_bases
+  wrong_book_dir: ./data/wrong_book
+  user_profile_dir: ./data/user_profile
+  exams_dir: ./data/exams
+  user_log_dir: ./data/logs
+
+logging:
+  level: INFO
+  save_to_file: true
+  console_output: true
+
+# RAG 配置（只用 raganything）
+rag:
+  provider: raganything
+  default_kb: textbook
+
+tools:
+  rag_tool:
+    kb_base_dir: ./data/knowledge_bases
+    default_kb: textbook
+  web_search:
+    enabled: true
+    provider: perplexity
+
+# 各功能模块配置
+homework:
+  # 支持的科目（初中二年级下册）
+  subjects:
+    - math       # 数学
+    - physics    # 物理
+    - chemistry  # 化学（初二下开始）
+    - english    # 英语
+    - chinese    # 语文
+    - history    # 历史
+    - biology    # 生物
+  # 难度等级
+  difficulty_levels:
+    - easy
+    - medium
+    - hard
+    - very_hard
+
+explain:
+  # 讲解模式
+  default_length: medium      # short / medium / long
+  max_rounds: 5               # 最多追问几轮
+  use_analogy: true           # 是否使用类比
+
+quiz:
+  default_count: 5            # 默认出题数量
+  difficulty_match: same      # same / easier / harder

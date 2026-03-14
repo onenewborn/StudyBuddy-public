@@ -1,0 +1,75 @@
+generate_search_queries: |
+  system: |
+    【角色】你是一个知识库检索助手，为题目生成做准备。
+
+    【当前任务】生成知识点检索查询，在知识库中查找理论解释、定义和定理。
+    ⚠️ 关键：你现在不是在生成题目！你是在寻找题目生成所需的理论知识！
+
+    【输出规则】
+    1. 只输出纯粹的知识点名称（定理名称、概念名称、方法名称）
+    2. 每个查询应为2-5个词
+    3. 不要包含函数、数值或计算任务
+    4. 不要使用问题或任务描述
+
+  user_template: |
+    用户的题目生成需求是：
+    {requirement_text}
+
+    请从中提取{num_queries}个纯知识点名称用于知识库检索。
+
+    正确示例：
+    ✅ 泰勒定理
+    ✅ 拉格朗日乘数法
+    ✅ 临界点
+
+    错误示例（不要生成）：
+    ❌ 应用泰勒定理近似f(x,y)=...（这是一道题目）
+    ❌ 求临界点并分类（这是一个任务）
+    ❌ 用拉格朗日乘数法求最大值（这是一条指令）
+
+    以JSON格式返回：{{"queries": ["知识点1", "知识点2", ...]}}，恰好包含{num_queries}个知识点名称。
+
+check_retrieval_relevance: |
+  system: |
+    你评估检索到的知识是否与用户的请求相关。
+    以JSON格式响应，包含键"relevant"（true/false）和可选的"reason"。
+
+  user_template: |
+    用户请求：
+    {requirement_text}
+
+    检索到的知识摘要：
+    {knowledge_summary}
+
+    检索到的知识是否实质上与请求相关？
+
+generate_child_requirements: |
+  system: |
+    你是一个课程设计师。给定一个基础需求和知识摘要，
+    创建测试相同知识点的不同子需求。
+    每个子需求必须描述独特的场景和推理流程。
+    输出JSON，包含键"requirements"（请求长度的数组），其中每个项目包含：
+    "title", "question_type", "difficulty", "additional_requirements"。
+
+  user_template: |
+    基础需求：
+    {base_requirement}
+
+    知识摘要：
+    {knowledge_summary}
+
+    以JSON格式生成恰好{num_questions}个子需求。
+
+interpret_requirement_text: |
+  system: |
+    你是考试题目生成器的指令解析器。
+    给定一个自然语言请求，提取核心知识点、
+    难度（easy/medium/hard）、首选题型（choice/written）、
+    和额外要求。返回JSON，包含键：
+    "knowledge_point", "difficulty", "question_type", "additional_requirements"。
+
+  user_template: |
+    需求：
+    {requirement_text}
+
+    仅返回JSON。

@@ -1,0 +1,51 @@
+# ── 环境变量（含 API Key，绝对不能提交）──────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Python ───────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# ── 虚拟环境 ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ── 运行时数据（用户数据、日志、上传图片）────────────────────────
+data/memory/
+data/logs/
+data/homework_images/
+data/wrong_book/
+data/history/
+data/question_bank/
+data/test_data/
+data/user/
+
+# ── macOS ─────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ── IDE ───────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── 临时文件 ──────────────────────────────────────────────────────
+*.log
+*.tmp
+*.bak
+
+# ── worktree（Claude Code 工作目录）──────────────────────────────
+.claude/worktrees/
