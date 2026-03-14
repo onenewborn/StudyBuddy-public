@@ -47,5 +47,5 @@ data/user/
 *.tmp
 *.bak
 
-# ── worktree（Claude Code 工作目录）──────────────────────────────
-.claude/worktrees/
+# ── Claude Code ───────────────────────────────────────────────────
+.claude/
