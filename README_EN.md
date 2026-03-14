@@ -6,6 +6,12 @@ Powered by **EverMemOS** long-term memory cloud, so the AI tutor truly *remember
 
 ---
 
+## Demo
+
+<video src="https://github.com/user-attachments/assets/eb99171f-246f-4a90-99e0-91e803813c4b" controls width="100%"></video>
+
+---
+
 ## Features
 
 - **AI Homework Grading**: Upload a photo, AI identifies each question, marks correct/wrong, gives the correct answer and explains the mistake

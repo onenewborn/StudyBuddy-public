@@ -6,6 +6,12 @@
 
 ---
 
+## 演示视频
+
+<video src="https://github.com/user-attachments/assets/eb99171f-246f-4a90-99e0-91e803813c4b" controls width="100%"></video>
+
+---
+
 ## 功能概览
 
 - **作业批改**：拍照上传，AI 自动识别题目、判断对错、给出解析和错误类型
