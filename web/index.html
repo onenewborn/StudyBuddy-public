@@ -16,9 +16,11 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; }
@@ -122,6 +124,9 @@
     .md em { color:#a78bfa; }
     .md blockquote { border-left:3px solid #22d3ee; padding-left:.75rem; color:#64748b; margin-bottom:.6rem; }
     .md a { color:#22d3ee; text-decoration:underline; }
+    .md .math-block { overflow-x:auto; overflow-y:hidden; margin:.75rem 0; padding:.35rem 0; }
+    .md .katex-display { margin:.4rem 0; }
+    .md .katex { color:#e2e8f0; font-size:1.02em; }
 
     /* ─── stat ring ─── */
     .ring-bg { stroke:#0c1828; }
@@ -2197,6 +2202,92 @@
 
   const SUBJ_COLORS = { math:'#60a5fa', physics:'#c084fc', chemistry:'#34d399', english:'#fbbf24', biology:'#f472b6', history:'#fb923c', chinese:'#f87171', politics:'#818cf8', geography:'#2dd4bf' }
 
+  function fallbackMathText(text) {
+    if (!text) return ''
+
+    let out = text
+    const replacements = [
+      [/\\left|\\right/g, ''],
+      [/\\times|\\cdot/g, '×'],
+      [/\\div/g, '÷'],
+      [/\\perp/g, '⊥'],
+      [/\\parallel/g, '∥'],
+      [/\\triangle/g, '△'],
+      [/\\angle/g, '∠'],
+      [/\\circ/g, '°'],
+      [/\\because/g, '∵'],
+      [/\\therefore/g, '∴'],
+      [/\\leq/g, '≤'],
+      [/\\geq/g, '≥'],
+      [/\\neq/g, '≠'],
+      [/\\pm/g, '±'],
+      [/\\to/g, '→'],
+      [/\\boxed\{([^{}]+)\}/g, '【$1】'],
+      [/\\text\{([^{}]+)\}/g, '$1'],
+      [/\\mathrm\{([^{}]+)\}/g, '$1'],
+      [/\\sqrt\{([^{}]+)\}/g, '√($1)'],
+      [/\\\[/g, ''],
+      [/\\\]/g, ''],
+      [/\\\(/g, ''],
+      [/\\\)/g, ''],
+    ]
+
+    for (const [pattern, replacement] of replacements) {
+      out = out.replace(pattern, replacement)
+    }
+
+    for (let i = 0; i < 6; i++) {
+      const next = out.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '$1/$2')
+      if (next === out) break
+      out = next
+    }
+
+    out = out.replace(/\$\$([\s\S]+?)\$\$/g, '$1')
+    out = out.replace(/\$([^$\n]+?)\$/g, '$1')
+    out = out.replace(/\\([A-Za-z]+)/g, '$1')
+    out = out.replace(/\{([^{}\n]+)\}/g, '$1')
+    out = out.replace(/\s{2,}/g, ' ')
+
+    return out
+  }
+
+  function renderMathInMarkdown(text) {
+    if (!text) return ''
+
+    const blocks = text.split(/(```[\s\S]*?```)/g)
+    const renderFormula = (formula, displayMode) => {
+      const source = formula.trim()
+      if (!source) return ''
+      if (window.katex?.renderToString) {
+        try {
+          const html = window.katex.renderToString(source, {
+            throwOnError: false,
+            displayMode,
+            strict: 'ignore',
+          })
+          return displayMode ? `<div class="math-block">${html}</div>` : html
+        } catch (_) {
+          const fallback = fallbackMathText(source)
+          return displayMode ? `\n<div class="math-block">${fallback}</div>\n` : fallback
+        }
+      }
+      const fallback = fallbackMathText(source)
+      return displayMode ? `\n<div class="math-block">${fallback}</div>\n` : fallback
+    }
+
+    const rendered = blocks.map((part, idx) => {
+      if (idx % 2 === 1) return part
+
+      return part
+        .replace(/\\\[([\s\S]+?)\\\]/g, (_, formula) => renderFormula(formula, true))
+        .replace(/\$\$([\s\S]+?)\$\$/g, (_, formula) => renderFormula(formula, true))
+        .replace(/\\\(([\s\S]+?)\\\)/g, (_, formula) => renderFormula(formula, false))
+        .replace(/\$([^$\n]+?)\$/g, (_, formula) => renderFormula(formula, false))
+    })
+
+    return rendered.join('')
+  }
+
   /* ══════════════════════════════════════════════════════════════
      ALPINE APP
   ══════════════════════════════════════════════════════════════ */
@@ -3067,7 +3158,9 @@
       },
       md(text) {
         if (!text) return ''
-        try { return marked.parse(text) } catch(_) { return text.replace(/\n/g,'<br>') }
+        const rendered = renderMathInMarkdown(text)
+        const fallback = fallbackMathText(text)
+        try { return marked.parse(rendered) } catch(_) { return fallback.replace(/\n/g,'<br>') }
       },
 
       /* ─── navigation ─── */
