@@ -10,6 +10,7 @@ from src.agents.homework.models import (
     WrongBookEntry,
 )
 from src.agents.homework.ocr_agent import OCRAgent
+from src.agents.homework.llamaparse_ocr_agent import LlamaParseOCRAgent, build_homework_ocr_agent
 from src.agents.homework.grade_agent import GradeAgent
 from src.agents.homework.exam_tag_agent import ExamTagAgent
 from src.agents.homework.knowpoint_agent import KnowPointAgent
@@ -26,6 +27,8 @@ __all__ = [
     "WrongBookEntry",
     # Agents
     "OCRAgent",
+    "LlamaParseOCRAgent",
+    "build_homework_ocr_agent",
     "GradeAgent",
     "ExamTagAgent",
     "KnowPointAgent",

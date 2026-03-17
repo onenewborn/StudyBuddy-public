@@ -22,6 +22,15 @@
 
 ---
 
+## 近期更新
+
+- 作业 OCR 默认切换到 `LlamaParse`，失败时自动回退旧视觉 OCR。
+- 数学科新增规则分题，常见“计算 / 因式分解 / 化简”题组可直接走秒级路径。
+- 作业批改默认模型切到 `kimi-turbo`，显著缩短 `Grade` 阶段耗时。
+- 新增 `.env` 配置项：`LLAMA_CLOUD_API_KEY`、`HOMEWORK_OCR_PARSE_MODEL_KEY`、`HOMEWORK_GRADE_MODEL_KEY` 等，便于统一切换链路。
+
+---
+
 ## 部署指南
 
 ### 环境要求

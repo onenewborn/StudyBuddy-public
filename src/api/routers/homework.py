@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -40,7 +41,7 @@ from src.agents.homework import (
     GradeAgent,
     HomeworkResult,
     KnowPointAgent,
-    OCRAgent,
+    build_homework_ocr_agent,
 )
 from src.agents.homework.models import GradedQuestion, GradeResult, QuestionType
 from src.agents.homework.wrong_book_service import WrongBookService
@@ -146,6 +147,25 @@ _VALID_SUBJECTS = {
 }
 
 
+def _resolve_grade_model_key(model_key: str | None, *, regrade: bool = False) -> str | None:
+    """
+    解析批改阶段使用的模型：
+    - 主链路默认：kimi -> kimi-turbo
+    - 申诉复判默认：保留 kimi（更稳）
+    - 允许通过环境变量显式覆盖
+    """
+    env_key = os.getenv("HOMEWORK_REGRADE_MODEL_KEY" if regrade else "HOMEWORK_GRADE_MODEL_KEY", "").strip().lower()
+    if env_key:
+        return env_key
+
+    normalized = (model_key or "").strip().lower()
+    if not normalized:
+        return "kimi" if regrade else "kimi-turbo"
+    if normalized == "kimi" and not regrade:
+        return "kimi-turbo"
+    return normalized
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ─────────────────────────────────────────────────────────────────────────────
@@ -248,7 +268,7 @@ async def grade_homework(
     try:
         # ── 2. OCR ─────────────────────────────────────────────────────────
         logger.info("[Homework] 第一步：OCR 识别中（多图并行）...")
-        ocr_agent = OCRAgent(parse_model_key=effective_key, **ocr_kw)
+        ocr_agent = build_homework_ocr_agent(effective_key, **ocr_kw)
         questions = await ocr_agent.process(images=images, subject=subject_key)
 
         if not questions:
@@ -310,7 +330,10 @@ async def grade_homework(
         # 只对题库未命中的题调用 LLM
         newly_graded: list[GradedQuestion] = []
         if miss_questions:
-            grade_agent = GradeAgent(**(model_kw or {}))
+            grade_model_key = _resolve_grade_model_key(effective_key)
+            grade_model_kw = agent_kwargs(grade_model_key) or {}
+            logger.info(f"[Homework] Grade 默认模型：{grade_model_key}")
+            grade_agent = GradeAgent(**grade_model_kw)
             newly_graded = await grade_agent.process(
                 miss_questions, subject=subject_key, memory_hint=memory_hint
             )
@@ -588,7 +611,8 @@ async def regrade_question(body: RegradeRequest):
         raise HTTPException(status_code=400, detail=f"未知科目: {body.subject}")
 
     try:
-        model_kw = agent_kwargs(body.model_key)
+        regrade_model_key = _resolve_grade_model_key(body.model_key, regrade=True)
+        model_kw = agent_kwargs(regrade_model_key)
         agent = GradeAgent(**(model_kw or {}))
         result = await agent.regrade_single(
             question_text=body.question_text,

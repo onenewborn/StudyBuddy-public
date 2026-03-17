@@ -25,7 +25,9 @@ Grade Agent — 作业批改
 
 from __future__ import annotations
 
+import asyncio
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -48,44 +50,84 @@ from src.agents.homework.models import (
 # 常量
 # ─────────────────────────────────────────────────────────────
 
-BATCH_SIZE = 10  # 每次 LLM 调用最多批改几道题（太多会降低准确率）
+BATCH_SIZE = max(1, int(os.getenv("HOMEWORK_GRADE_BATCH_SIZE", "4")))
+MAX_CONCURRENCY = max(1, int(os.getenv("HOMEWORK_GRADE_MAX_CONCURRENCY", "4")))
+OBJECTIVE_BATCH_SIZE = max(
+    1, int(os.getenv("HOMEWORK_GRADE_OBJECTIVE_BATCH_SIZE", str(max(BATCH_SIZE, 6))))
+)
+SUBJECTIVE_BATCH_SIZE = max(
+    1, int(os.getenv("HOMEWORK_GRADE_SUBJECTIVE_BATCH_SIZE", str(min(BATCH_SIZE, 3))))
+)
+OBJECTIVE_MAX_CONCURRENCY = max(
+    1, int(os.getenv("HOMEWORK_GRADE_OBJECTIVE_MAX_CONCURRENCY", str(MAX_CONCURRENCY + 1)))
+)
+SUBJECTIVE_MAX_CONCURRENCY = max(
+    1, int(os.getenv("HOMEWORK_GRADE_SUBJECTIVE_MAX_CONCURRENCY", str(MAX_CONCURRENCY)))
+)
+OBJECTIVE_MAX_TOKENS = max(800, int(os.getenv("HOMEWORK_GRADE_OBJECTIVE_MAX_TOKENS", "1800")))
+SUBJECTIVE_MAX_TOKENS = max(1200, int(os.getenv("HOMEWORK_GRADE_SUBJECTIVE_MAX_TOKENS", "2600")))
+SPLIT_BY_TYPE = os.getenv("HOMEWORK_GRADE_SPLIT_BY_TYPE", "0").strip().lower() in {
+    "1", "true", "yes", "on"
+}
 
-_SYSTEM_PROMPT = """你是一位严谨、专业的初中二年级（8年级）作业批改老师。
+_COMMON_OUTPUT_RULES = """输出要求：
+1. 只输出 JSON 对象，不要有任何其他文字或 markdown 代码块。
+2. 使用以下结构：
+{
+  "results": [
+    {
+      "number": "题号（与输入完全相同）",
+      "correct_answer": "标准答案",
+      "grade": "correct|wrong|partial|blank|skip",
+      "earned_score": 0,
+      "error_type": "calculation_error|concept_confusion|reading_mistake|formula_wrong|sign_error|unit_error|incomplete|logic_error|spelling_grammar|other|null",
+      "brief_comment": "一句话点评，30字以内"
+    }
+  ]
+}
+3. results 中元素顺序必须与输入完全一致，数量必须相同。
+4. 若学生作答为空，返回 blank；若题目不清晰无法判断，返回 skip。"""
+
+_OBJECTIVE_SYSTEM_PROMPT = f"""你是一位严谨、专业的作业批改老师。
+你正在批改客观题（选择题、填空题），请快速给出标准答案并严格比对学生答案。
+
+判题标准：
+- 选择题：correct_answer 只写选项字母或多选组合。
+- 填空题：correct_answer 只写最终答案，不展开长步骤。
+- 英语：大小写、常规标点不影响得分，语义正确即可判对。
+- 学生答案与标准答案不一致时，一般判 wrong；只有明显接近但不完全正确时才判 partial。
+
+{_COMMON_OUTPUT_RULES}"""
+
+_GENERAL_SYSTEM_PROMPT = f"""你是一位严谨、专业的作业批改老师。
 你需要批改学生的作业/试卷，判断每道题的对错，给出标准答案和简短点评。
-
-输出要求：
-1. 只输出 JSON 数组，不要有任何其他文字或 markdown 代码块。
-2. 数组中每个元素对应输入中的一道题（顺序一一对应，数量必须相同）。
-3. 每道题包含以下字段：
-   - number: 题号（与输入完全相同）
-   - correct_answer: 标准答案（简洁明确：选择题只写字母，计算题写最终结果+关键步骤）
-   - grade: 批改结论，只能是以下之一：
-     "correct"（完全正确）/ "wrong"（错误）/ "partial"（部分正确）/
-     "blank"（未作答）/ "skip"（无法判断，如题目不清晰）
-   - earned_score: 实际得分（数字或 null，仅当输入中有 score_value 时计算；
-     correct=满分，wrong=0，partial=约一半）
-   - error_type: 错误类型（仅 grade=wrong 或 partial 时填写，否则填 null），只能是以下之一：
-     "calculation_error"（计算失误）/ "concept_confusion"（概念混淆）/
-     "reading_mistake"（审题错误）/ "formula_wrong"（公式错误）/
-     "sign_error"（正负号错误）/ "unit_error"（单位错误）/
-     "incomplete"（步骤不完整）/ "logic_error"（逻辑错误）/
-     "spelling_grammar"（拼写语法）/ "other"
-   - brief_comment: 一句话点评（≤30字），错的说错在哪，对的可以写"正确"
 
 判题标准：
 - 选择题/填空题：答案唯一，严格对比
 - 计算题/解答题：过程对但最终结果小错（如抄写失误）→ partial；思路根本错误 → wrong
 - 证明题：思路正确但不完整 → partial
-- 英语：大小写/标点不影响得分，语义对即正确
-- 若学生作答为空 → blank（不要自行判断）
-- 若题目文字为"（图片不清晰，无法识别）"→ skip"""
+- 文科简答：抓住关键点即可判对，不要求逐字一致
+- 英语主观题：语义对即正确，小语法问题可 partial
+
+{_COMMON_OUTPUT_RULES}"""
+
+_SUBJECTIVE_SYSTEM_PROMPT = f"""你是一位严谨、专业的作业批改老师。
+你需要批改学生的主观题，判断每道题的对错，给出标准答案和简短点评。
+
+判题标准：
+- 计算题/解答题：过程对但最终结果小错（如抄写失误）→ partial；思路根本错误 → wrong
+- 证明题：思路正确但不完整 → partial
+- 文科简答：抓住关键点即可判对，不要求逐字一致
+- 英语主观题：语义对即正确，小语法问题可 partial
+
+{_COMMON_OUTPUT_RULES}"""
 
 _USER_PROMPT_TEMPLATE = """科目：{subject}
 
 以下是 {count} 道题目（JSON 数组），请逐题批改：
 {questions_json}
 
-请输出批改结果 JSON 数组（与输入顺序完全对应，共 {count} 个元素）："""
+请输出批改结果 JSON 对象，格式为 {{"results":[...]}}，并确保与输入顺序完全对应，共 {count} 个元素："""
 
 _SUBJECT_NAMES = {
     "math":      "数学",
@@ -98,6 +140,8 @@ _SUBJECT_NAMES = {
     "politics":  "政治",
     "geography": "地理",
 }
+
+_OBJECTIVE_TYPES = {QuestionType.CHOICE, QuestionType.FILL_BLANK}
 
 
 # ─────────────────────────────────────────────────────────────
@@ -144,17 +188,56 @@ class GradeAgent(BaseAgent):
         if memory_hint:
             self.logger.info("[Grade] 已注入学生记忆档案")
 
-        # 分批处理（每批 BATCH_SIZE 道）
-        graded_all: list[GradedQuestion] = []
-        batches = [questions[i:i + BATCH_SIZE] for i in range(0, len(questions), BATCH_SIZE)]
+        indexed_questions = list(enumerate(questions))
 
-        for batch_idx, batch in enumerate(batches):
-            self.logger.info(
-                f"[Grade] 批次 {batch_idx + 1}/{len(batches)}，"
-                f"题目 {batch[0].number}~{batch[-1].number}"
+        if not SPLIT_BY_TYPE:
+            graded_map = await self._run_partition(
+                items=indexed_questions,
+                subject_name=subject_name,
+                memory_hint=memory_hint,
+                kind="mixed",
+                batch_size=BATCH_SIZE,
+                max_concurrency=MAX_CONCURRENCY,
+                system_prompt_base=_GENERAL_SYSTEM_PROMPT,
+                max_tokens=SUBJECTIVE_MAX_TOKENS,
             )
-            graded_batch = await self._grade_batch(batch, subject_name, memory_hint)
-            graded_all.extend(graded_batch)
+        else:
+            objective_items = [(idx, q) for idx, q in indexed_questions if q.question_type in _OBJECTIVE_TYPES]
+            subjective_items = [(idx, q) for idx, q in indexed_questions if q.question_type not in _OBJECTIVE_TYPES]
+
+            self.logger.info(
+                "[Grade] 题型分流："
+                f"客观题={len(objective_items)}，主观题={len(subjective_items)}"
+            )
+
+            graded_map: dict[int, GradedQuestion] = {}
+            if objective_items:
+                objective_results = await self._run_partition(
+                    items=objective_items,
+                    subject_name=subject_name,
+                    memory_hint=memory_hint,
+                    kind="objective",
+                    batch_size=OBJECTIVE_BATCH_SIZE,
+                    max_concurrency=OBJECTIVE_MAX_CONCURRENCY,
+                    system_prompt_base=_OBJECTIVE_SYSTEM_PROMPT,
+                    max_tokens=OBJECTIVE_MAX_TOKENS,
+                )
+                graded_map.update(objective_results)
+
+            if subjective_items:
+                subjective_results = await self._run_partition(
+                    items=subjective_items,
+                    subject_name=subject_name,
+                    memory_hint=memory_hint,
+                    kind="subjective",
+                    batch_size=SUBJECTIVE_BATCH_SIZE,
+                    max_concurrency=SUBJECTIVE_MAX_CONCURRENCY,
+                    system_prompt_base=_SUBJECTIVE_SYSTEM_PROMPT,
+                    max_tokens=SUBJECTIVE_MAX_TOKENS,
+                )
+                graded_map.update(subjective_results)
+
+        graded_all = [graded_map[idx] for idx in range(len(questions))]
 
         self.logger.info(
             f"[Grade] 批改完成：正确={sum(1 for q in graded_all if q.grade == GradeResult.CORRECT)}，"
@@ -197,13 +280,19 @@ class GradeAgent(BaseAgent):
 
         subject_name = _SUBJECT_NAMES.get(subject, subject)
         appeal_prompt = (
-            _SYSTEM_PROMPT
+            _SUBJECTIVE_SYSTEM_PROMPT
             + "\n\n【申诉复审模式】这是学生对 AI 判分提出申诉的重新审核，"
             "请特别仔细独立重新评估，不要受到之前判断的影响，"
             "严格依据题目要求和学生作答客观判断。"
         )
 
-        graded = await self._grade_batch_with_prompt([fake_q], subject_name, appeal_prompt)
+        graded = await self._grade_batch_with_prompt(
+            [fake_q],
+            subject_name,
+            appeal_prompt,
+            max_tokens=SUBJECTIVE_MAX_TOKENS,
+            stage="grade_recheck",
+        )
         gq = graded[0]
         return {
             "grade": gq.grade.value,
@@ -219,14 +308,104 @@ class GradeAgent(BaseAgent):
         memory_hint: str = "",
     ) -> list[GradedQuestion]:
         """批改一批题目，返回对应的 GradedQuestion 列表。"""
-        system_prompt = _SYSTEM_PROMPT + memory_hint
-        return await self._grade_batch_with_prompt(batch, subject_name, system_prompt)
+        system_prompt = _GENERAL_SYSTEM_PROMPT + memory_hint
+        return await self._grade_batch_with_prompt(
+            batch,
+            subject_name,
+            system_prompt,
+            max_tokens=SUBJECTIVE_MAX_TOKENS,
+            stage="grade_subjective_batch",
+        )
+
+    async def _run_partition(
+        self,
+        items: list[tuple[int, ExtractedQuestion]],
+        subject_name: str,
+        memory_hint: str,
+        kind: str,
+        batch_size: int,
+        max_concurrency: int,
+        system_prompt_base: str,
+        max_tokens: int,
+    ) -> dict[int, GradedQuestion]:
+        batch_size, max_concurrency = self._plan_partition(
+            total_items=len(items),
+            batch_size_cap=batch_size,
+            max_concurrency_cap=max_concurrency,
+        )
+        batches = [items[i:i + batch_size] for i in range(0, len(items), batch_size)]
+        effective_concurrency = min(max_concurrency, len(batches))
+        self.logger.info(
+            f"[Grade] {kind} 批改：批大小={batch_size}，并发数={effective_concurrency}，共 {len(batches)} 批"
+        )
+
+        system_prompt = system_prompt_base + memory_hint
+        semaphore = asyncio.Semaphore(effective_concurrency)
+
+        async def run_batch(
+            batch_idx: int,
+            batch_items: list[tuple[int, ExtractedQuestion]],
+        ) -> tuple[int, list[tuple[int, GradedQuestion]]]:
+            batch = [question for _, question in batch_items]
+            async with semaphore:
+                self.logger.info(
+                    f"[Grade] {kind} 批次 {batch_idx + 1}/{len(batches)}，"
+                    f"题目 {batch[0].number}~{batch[-1].number}"
+                )
+                graded_batch = await self._grade_batch_with_prompt(
+                    batch,
+                    subject_name,
+                    system_prompt,
+                    max_tokens=max_tokens,
+                    stage=f"grade_{kind}_batch",
+                )
+                return batch_idx, [
+                    (batch_items[idx][0], graded_batch[idx])
+                    for idx in range(len(batch_items))
+                ]
+
+        batch_results = await asyncio.gather(
+            *(run_batch(batch_idx, batch) for batch_idx, batch in enumerate(batches))
+        )
+        batch_results.sort(key=lambda item: item[0])
+
+        graded_map: dict[int, GradedQuestion] = {}
+        for _, pairs in batch_results:
+            for original_idx, graded_question in pairs:
+                graded_map[original_idx] = graded_question
+        return graded_map
+
+    @staticmethod
+    def _plan_partition(
+        *,
+        total_items: int,
+        batch_size_cap: int,
+        max_concurrency_cap: int,
+    ) -> tuple[int, int]:
+        """
+        动态规划批次：
+        - 优先尽量 1 轮完成全部题目
+        - 单批题量尽量小，降低单次调用耗时
+        - 并发数不超过配置上限
+        """
+        if total_items <= 0:
+            return 1, 1
+
+        target_concurrency = min(max_concurrency_cap, total_items)
+        planned_batch_size = max(1, (total_items + target_concurrency - 1) // target_concurrency)
+        planned_batch_size = min(planned_batch_size, batch_size_cap)
+        planned_batches = max(1, (total_items + planned_batch_size - 1) // planned_batch_size)
+        planned_concurrency = min(max_concurrency_cap, planned_batches)
+        return planned_batch_size, planned_concurrency
 
     async def _grade_batch_with_prompt(
         self,
         batch: list[ExtractedQuestion],
         subject_name: str,
         system_prompt: str,
+        *,
+        max_tokens: int,
+        stage: str,
     ) -> list[GradedQuestion]:
         """批改一批题目（使用指定 system_prompt），内部通用实现。"""
 
@@ -252,7 +431,8 @@ class GradeAgent(BaseAgent):
             user_prompt=user_prompt,
             system_prompt=system_prompt,
             response_format={"type": "json_object"},
-            stage="grade_batch",
+            max_tokens=max_tokens,
+            stage=stage,
         )
 
         # 解析响应，合并回 GradedQuestion

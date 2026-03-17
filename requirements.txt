@@ -15,6 +15,7 @@ pydantic>=2.11.0
 # ── LLM Providers ────────────────────────────────────────────
 openai>=2.0.0                  # OpenAI / Gemini / Kimi 等 OpenAI 兼容接口
 anthropic>=0.79.0              # Anthropic Claude（可选）
+llama-cloud>=0.1.35            # LlamaParse / Llama Cloud OCR
 
 # ── HTTP Client ───────────────────────────────────────────────
 httpx>=0.28.0                  # EverMemOS 客户端 & 异步 HTTP 调用
